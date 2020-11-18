@@ -527,13 +527,14 @@ func (app *SpacemeshApp) initServices(nodeID types.NodeID,
 	beaconProvider := &blocks.EpochBeaconProvider{}
 
 	var msh *mesh.Mesh
-	var trtl tortoise.Tortoise
+	var trtl *tortoise.ThreadSafeVerifyingTortoise
+
 	if mdb.PersistentData() {
-		trtl = tortoise.NewRecoveredTortoise(mdb, app.addLogger(TrtlLogger, lg))
+		trtl = tortoise.NewRecoveredVerifyingTortoise(mdb, app.addLogger(TrtlLogger, lg))
 		msh = mesh.NewRecoveredMesh(mdb, atxdb, app.Config.REWARD, trtl, app.txPool, processor, app.addLogger(MeshLogger, lg))
 		go msh.CacheWarmUp(app.Config.LayerAvgSize)
 	} else {
-		trtl = tortoise.NewTortoise(int(layerSize), mdb, app.Config.Hdist, app.addLogger(TrtlLogger, lg))
+		trtl = tortoise.NewVerifyingTortoise(int(layerSize), mdb, app.Config.Hdist, app.addLogger(TrtlLogger, lg))
 		msh = mesh.NewMesh(mdb, atxdb, app.Config.REWARD, trtl, app.txPool, processor, app.addLogger(MeshLogger, lg))
 		app.setupGenesis(processor, msh)
 	}
@@ -585,7 +586,7 @@ func (app *SpacemeshApp) initServices(nodeID types.NodeID,
 	}
 
 	database.SwitchCreationContext(dbStorepath, "") // currently only blockbuilder uses this mechanism
-	blockProducer := miner.NewBlockBuilder(cfg, sgn, swarm, clock.Subscribe(), coinToss, msh, ha, blockOracle, syncer, stateAndMeshProjector, app.txPool, atxdb, app.addLogger(BlockBuilderLogger, lg))
+	blockProducer := miner.NewBlockBuilder(cfg, sgn, swarm, clock.Subscribe(), coinToss, msh, trtl, ha, blockOracle, syncer, stateAndMeshProjector, app.txPool, atxdb, app.addLogger(BlockBuilderLogger, lg))
 
 	bCfg := blocks.Config{
 		Depth: app.Config.Hdist,
@@ -649,7 +650,9 @@ func (app *SpacemeshApp) checkTimeDrifts() {
 // HareFactory returns a hare consensus algorithm according to the parameters is app.Config.Hare.SuperHare
 func (app *SpacemeshApp) HareFactory(mdb *mesh.DB, swarm service.Service, sgn hare.Signer, nodeID types.NodeID, syncer *sync.Syncer, msh *mesh.Mesh, hOracle hare.Rolacle, idStore *activation.IdentityStore, clock TickProvider, lg log.Log) HareService {
 	if app.Config.HARE.SuperHare {
-		return turbohare.New(msh)
+		hr := turbohare.New(msh)
+		mdb.InputVectorBackupFunc = hr.GetResult
+		return hr
 	}
 
 	// a function to validate we know the blocks
@@ -669,7 +672,7 @@ func (app *SpacemeshApp) HareFactory(mdb *mesh.DB, swarm service.Service, sgn ha
 
 		return true
 	}
-	ha := hare.New(app.Config.HARE, swarm, sgn, nodeID, validationFunc, syncer.IsSynced, msh, hOracle, uint16(app.Config.LayersPerEpoch), idStore, hOracle, clock.Subscribe(), app.addLogger(HareLogger, lg))
+	ha := hare.New(app.Config.HARE, swarm, sgn, nodeID, validationFunc, syncer.IsHareSynced, msh, hOracle, uint16(app.Config.LayersPerEpoch), idStore, hOracle, clock.Subscribe(), app.addLogger(HareLogger, lg))
 	return ha
 }
 

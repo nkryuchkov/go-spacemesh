@@ -2,54 +2,16 @@ package tortoise
 
 import (
 	"fmt"
-	"github.com/spacemeshos/go-spacemesh/common/types"
-	"github.com/spacemeshos/go-spacemesh/events"
-	"github.com/spacemeshos/go-spacemesh/log"
-	"github.com/spacemeshos/go-spacemesh/mesh"
 	"hash/fnv"
 	"math"
 	"sync"
 	"time"
+
+	"github.com/spacemeshos/go-spacemesh/common/types"
+	"github.com/spacemeshos/go-spacemesh/events"
+	"github.com/spacemeshos/go-spacemesh/log"
+	"github.com/spacemeshos/go-spacemesh/mesh"
 )
-
-type vec [2]int
-type patternID uint32 // this hash does not include the layer id
-
-const ( // Threshold
-	window          = 10
-	globalThreshold = 0.6
-)
-
-var ( // correction vectors type
-	// Opinion
-	support     = vec{1, 0}
-	against     = vec{0, 1}
-	abstain     = vec{0, 0}
-	zeroPattern = votingPattern{}
-)
-
-func max(i types.LayerID, j types.LayerID) types.LayerID {
-	if i > j {
-		return i
-	}
-	return j
-}
-
-func (a vec) Add(v vec) vec {
-	return vec{a[0] + v[0], a[1] + v[1]}
-}
-
-func (a vec) Negate() vec {
-	a[0] = a[0] * -1
-	a[1] = a[1] * -1
-	return a
-}
-
-func (a vec) Multiply(x int) vec {
-	a[0] = a[0] * x
-	a[1] = a[1] * x
-	return a
-}
 
 type blockIDLayerTuple struct {
 	types.BlockID
@@ -76,14 +38,14 @@ func (vp votingPattern) Layer() types.LayerID {
 type database interface {
 	GetBlock(id types.BlockID) (*types.Block, error)
 	LayerBlockIds(id types.LayerID) ([]types.BlockID, error)
-	ForBlockInView(view map[types.BlockID]struct{}, layer types.LayerID, foo func(block *types.Block) (bool, error)) error
+	OldForBlockInView(view map[types.BlockID]struct{}, layer types.LayerID, foo func(block *types.Block) (bool, error)) error
 	SaveContextualValidity(id types.BlockID, valid bool) error
 	Persist(key []byte, v interface{}) error
 	Retrieve(key []byte, v interface{}) (interface{}, error)
 }
 
 type ninjaTortoise struct {
-	db           database // block cache
+	db           database //block cache
 	logger       log.Log
 	mutex        sync.Mutex
 	Last         types.LayerID
@@ -160,13 +122,13 @@ func (ni *ninjaTortoise) persist() error {
 }
 
 // RecoverTortoise retrieve latest saved tortoise from the database
-func RecoverTortoise(mdb database) (interface{}, error) {
+func RecoverTortoise(mdb retriever) (interface{}, error) {
 	return mdb.Retrieve(mesh.TORTOISE, &ninjaTortoise{})
 }
 
 func (ni *ninjaTortoise) evictOutOfPbase() {
 	wg := sync.WaitGroup{}
-	if ni.PBase == zeroPattern || ni.PBase.Layer() <= ni.Hdist {
+	if ni.PBase == zeroPattern || ni.PBase.Layer() <= ni.Hdist+types.GetEffectiveGenesis() {
 		return
 	}
 
@@ -292,17 +254,6 @@ func getIdsFromSet(bids map[types.BlockID]struct{}) patternID {
 	return getID(keys)
 }
 
-func globalOpinion(v vec, layerSize int, delta float64) vec {
-	threshold := float64(globalThreshold*delta) * float64(layerSize)
-	if float64(v[0]) > threshold {
-		return support
-	} else if float64(v[1]) > threshold {
-		return against
-	} else {
-		return abstain
-	}
-}
-
 func (ni *ninjaTortoise) updateCorrectionVectors(p votingPattern, bottomOfWindow types.LayerID) {
 	foo := func(x *types.Block) (bool, error) {
 		for _, b := range ni.TEffectiveToBlocks[p] { // for all b whose effective vote is p
@@ -323,7 +274,7 @@ func (ni *ninjaTortoise) updateCorrectionVectors(p votingPattern, bottomOfWindow
 	}
 
 	tp := ni.TPattern[p]
-	ni.db.ForBlockInView(tp, bottomOfWindow, foo)
+	ni.db.OldForBlockInView(tp, bottomOfWindow, foo)
 }
 
 func (ni *ninjaTortoise) updatePatternTally(newMinGood votingPattern, correctionMap map[types.BlockID]vec, effCountMap map[types.LayerID]int) {
@@ -461,7 +412,7 @@ func (ni *ninjaTortoise) addPatternVote(p votingPattern, view map[types.BlockID]
 				blt := blockIDLayerTuple{bl, ex.Layer()}
 				if found {
 					ni.TTally[p][blt] = ni.TTally[p][blt].Add(support)
-				} else if _, inSet := view[bl]; inSet { // in view but not in pattern
+				} else if _, inSet := view[bl]; inSet { //in view but not in pattern
 					ni.TTally[p][blt] = ni.TTally[p][blt].Add(against)
 				}
 			}
@@ -556,7 +507,7 @@ func (ni *ninjaTortoise) handleIncomingLayer(newlyr *types.Layer) {
 			}
 
 			tp := ni.TPattern[p]
-			ni.db.ForBlockInView(tp, windowStart, foo)
+			ni.db.OldForBlockInView(tp, windowStart, foo)
 
 			// add corrected implicit votes
 			ni.updatePatternTally(p, correctionMap, effCountMap)
@@ -618,7 +569,7 @@ func (ni *ninjaTortoise) handleIncomingLayer(newlyr *types.Layer) {
 
 func getBottomOfWindow(newlyr types.LayerID, pbase types.LayerID, hdist types.LayerID) types.LayerID {
 	if window > newlyr {
-		return 0
+		return types.GetEffectiveGenesis()
 	} else if pbase < hdist {
 		return newlyr - window + 1
 	}
