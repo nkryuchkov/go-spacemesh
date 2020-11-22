@@ -51,9 +51,11 @@ import (
 	timeCfg "github.com/spacemeshos/go-spacemesh/timesync/config"
 	"github.com/spacemeshos/go-spacemesh/tortoise"
 	"github.com/spacemeshos/go-spacemesh/turbohare"
+
+	_ "net/http/pprof"
 )
 
-import _ "net/http/pprof" // import for memory and network profiling
+// import for memory and network profiling
 
 const edKeyFileName = "key.bin"
 
@@ -524,16 +526,24 @@ func (app *SpacemeshApp) initServices(nodeID types.NodeID,
 
 	var msh *mesh.Mesh
 	var trtl *tortoise.ThreadSafeVerifyingTortoise
+	trtlCfg := tortoise.Config{
+		LayerSyze: int(layerSize),
+		Database:  mdb,
+		Hdist:     app.Config.Hdist,
+		Log:       app.addLogger(TrtlLogger, lg),
+		Recovered: mdb.PersistentData(),
+	}
 
-	if mdb.PersistentData() {
-		trtl = tortoise.NewRecoveredVerifyingTortoise(mdb, app.addLogger(TrtlLogger, lg))
+	trtl = tortoise.NewVerifyingTortoise(trtlCfg)
+
+	if trtlCfg.Recovered {
 		msh = mesh.NewRecoveredMesh(mdb, atxdb, app.Config.REWARD, trtl, app.txPool, processor, app.addLogger(MeshLogger, lg))
 		go msh.CacheWarmUp(app.Config.LayerAvgSize)
 	} else {
-		trtl = tortoise.NewVerifyingTortoise(int(layerSize), mdb, app.Config.Hdist, app.addLogger(TrtlLogger, lg))
 		msh = mesh.NewMesh(mdb, atxdb, app.Config.REWARD, trtl, app.txPool, processor, app.addLogger(MeshLogger, lg))
 		app.setupGenesis(processor, msh)
 	}
+
 	eValidator := blocks.NewBlockEligibilityValidator(layerSize, uint32(app.Config.GenesisActiveSet), layersPerEpoch, atxdb, beaconProvider, BLS381.Verify2, msh, app.addLogger(BlkEligibilityLogger, lg))
 
 	syncConf := sync.Configuration{Concurrency: 4,
