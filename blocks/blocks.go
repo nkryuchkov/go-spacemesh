@@ -60,37 +60,6 @@ func NewBlockHandler(cfg Config, m mesh, v blockValidator, lg log.Log) *BlockHan
 	}
 }
 
-func (bh BlockHandler) validateVotes(blk *types.Block) error {
-	view := map[types.BlockID]struct{}{}
-	for _, b := range blk.ViewEdges {
-		view[b] = struct{}{}
-	}
-
-	vote := map[types.BlockID]struct{}{}
-	for _, b := range blk.BlockVotes {
-		vote[b] = struct{}{}
-	}
-
-	traverse := func(b *types.Block) (stop bool, err error) {
-		if _, ok := vote[b.ID()]; ok {
-			delete(vote, b.ID())
-		}
-		return len(vote) == 0, nil
-	}
-
-	// traverse only through the last Hdist layers
-	lowestLayer := blk.LayerIndex - types.LayerID(bh.depth)
-	if blk.LayerIndex < types.LayerID(bh.depth) {
-		lowestLayer = 0
-	}
-	err := bh.traverse(view, lowestLayer, traverse)
-	if err == nil && len(vote) > 0 {
-		return fmt.Errorf("voting on blocks out of view (or out of Hdist), %v %s", vote, err)
-	}
-
-	return err
-}
-
 // HandleBlock defines method to handle blocks from gossip
 func (bh *BlockHandler) HandleBlock(data service.GossipMessage, sync service.Fetcher) {
 	err := bh.HandleBlockData(data.Bytes(), sync)
@@ -139,6 +108,9 @@ func (bh *BlockHandler) HandleBlockData(data []byte, sync service.Fetcher) error
 	return nil
 }
 
+func combineBlockDiffs(blk types.Block) []types.BlockID {
+	return append(append(blk.ForDiff, blk.AgainstDiff...), blk.NeutralDiff...)
+}
 func (bh BlockHandler) blockSyntacticValidation(block *types.Block, syncer service.Fetcher) error {
 	// if there is a reference block - first validate it
 	if block.RefBlock != nil {
@@ -148,15 +120,15 @@ func (bh BlockHandler) blockSyntacticValidation(block *types.Block, syncer servi
 		}
 	}
 
-	// fast validation checks if there are no duplicate ATX in active set and no duplicate TXs as well
-	if err := bh.fastValidation(block); err != nil {
-		bh.Log.Error("failed fast validation block %v e: %v", block.ID(), err)
-		return err
-	}
-
 	// try fetch referenced ATXs
 	err := bh.fetchAllReferencedAtxs(block, syncer)
 	if err != nil {
+		return err
+	}
+
+	// fast validation checks if there are no duplicate ATX in active set and no duplicate TXs as well
+	if err := bh.fastValidation(block); err != nil {
+		bh.Log.Error("failed fast validation block %v e: %v", block.ID(), err)
 		return err
 	}
 
@@ -169,15 +141,9 @@ func (bh BlockHandler) blockSyntacticValidation(block *types.Block, syncer servi
 	}
 
 	// get and validate blocks views using the fetch
-	err = syncer.GetBlocks(block.ViewEdges)
+	err = syncer.GetBlocks(combineBlockDiffs(*block))
 	if err != nil {
 		return fmt.Errorf("failed to fetch view %v e: %v", block.ID(), err)
-	}
-
-	// validate block's votes
-	//if valid, err := validateVotes(block, s.ForBlockInView, s.Hdist, s.Log); valid == false || err != nil {
-	if err := bh.validateVotes(block); err != nil {
-		return fmt.Errorf("validate votes failed for block %v, %v", block.ID(), err)
 	}
 
 	return nil

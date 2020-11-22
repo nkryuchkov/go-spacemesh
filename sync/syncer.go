@@ -103,14 +103,18 @@ func (s *status) String() string {
 	if *s == 1 {
 		return "inProgress"
 	}
+	if *s == 3 {
+		return "inProgress2"
+	}
 
 	return "done"
 }
 
 const (
-	pending    status = 0
-	inProgress status = 1
-	done       status = 2
+	pending     status = 0
+	inProgress  status = 1
+	done        status = 2
+	inProgress2 status = 3
 
 	blockMsg      server.MessageType = 1
 	layerHashMsg  server.MessageType = 2
@@ -120,6 +124,7 @@ const (
 	poetMsg       server.MessageType = 6
 	atxIdsMsg     server.MessageType = 7
 	atxIdrHashMsg server.MessageType = 8
+	inputVecMsg   server.MessageType = 9
 
 	syncProtocol                      = "/sync/1.0/"
 	validatingLayerNone types.LayerID = 0
@@ -201,6 +206,7 @@ func NewSync(srv service.Service, layers *mesh.Mesh, txpool txMemPool, atxDB atx
 	srvr.RegisterBytesMsgHandler(poetMsg, newPoetRequestHandler(s, logger))
 	srvr.RegisterBytesMsgHandler(atxIdsMsg, newEpochAtxsRequestHandler(s, logger))
 	srvr.RegisterBytesMsgHandler(atxIdrHashMsg, newAtxHashRequestHandler(s, logger))
+	srvr.RegisterBytesMsgHandler(inputVecMsg, newInputVecRequestHandler(s, logger))
 
 	return s
 }
@@ -289,6 +295,11 @@ func (s *Syncer) IsSynced() bool {
 	return s.weaklySynced(s.GetCurrentLayer()) && s.getGossipBufferingStatus() == done
 }
 
+// IsHareSynced returns true if the hare is synced false otherwise
+func (s *Syncer) IsHareSynced() bool {
+	return s.getGossipBufferingStatus() == inProgress2 || s.IsSynced()
+}
+
 // Start starts the main pooling routine that checks the sync status every set interval
 // and calls synchronise if the node is out of sync
 func (s *Syncer) Start() {
@@ -349,8 +360,9 @@ func (s *Syncer) synchronise() {
 
 func (s *Syncer) handleWeaklySynced() {
 	s.With().Info("Node is weakly synced",
-		s.LatestLayer(),
-		s.GetCurrentLayer())
+		log.FieldNamed("latest_layer", s.LatestLayer()),
+		log.FieldNamed("current_layer", s.GetCurrentLayer()),
+	)
 	events.ReportNodeStatusUpdate()
 
 	// handle all layers from processed+1 to current -1
@@ -361,6 +373,7 @@ func (s *Syncer) handleWeaklySynced() {
 	}
 
 	// validate current layer if more than s.ValidationDelta has passed
+	// TODO: remove this since hare runs it?
 	if err := s.handleCurrentLayer(); err != nil {
 		s.With().Error("Node is out of sync", log.Err(err))
 		s.setGossipBufferingStatus(pending)
@@ -452,13 +465,15 @@ func (s *Syncer) handleNotSynced(currentSyncLayer types.LayerID) {
 			}
 		}
 		s.syncAtxs(currentSyncLayer)
-		s.ValidateLayer(lyr) // wait for layer validation
-	}
 
-	// if we are in the first epoch, we need to listen to gossip still
-	if currentSyncLayer.GetEpoch() < 3 {
-		s.setGossipBufferingStatus(done)
-		return
+		// TODO: implement handling hare terminating with no valid blocks.
+		// 	currently hareForLayer is nil if hare hasn't terminated yet.
+		//	 ACT: hare should save something in the db when terminating empty set, sync should check it.
+		hareForLayer, err := s.DB.GetLayerInputVector(lyr.Index())
+		if err != nil {
+			s.Log.With().Warning("validating layer without input vector", lyr.Index(), log.Err(err))
+		}
+		s.ValidateLayer(lyr, hareForLayer) // wait for layer validation
 	}
 
 	// wait for two ticks to ensure we are fully synced before we open gossip or validate the current layer
@@ -478,29 +493,25 @@ func (s *Syncer) syncAtxs(currentSyncLayer types.LayerID) {
 	}
 }
 
-// Waits two ticks (while weakly-synced) in order to ensure that we listened to gossip for one full layer
-// after that we are assumed to have all the data required for validation so we can validate and open gossip
+//Waits two ticks (while weakly-synced) in order to ensure that we listened to gossip for one full layer
+//after that we are assumed to have all the data required for validation so we can validate and open gossip
 // opening gossip in weakly-synced transition us to fully-synced
 func (s *Syncer) gossipSyncForOneFullLayer(currentSyncLayer types.LayerID) error {
 	// listen to gossip
-	s.setGossipBufferingStatus(inProgress)
 	// subscribe and wait for two ticks
 	s.Info("waiting for two ticks while p2p is open, epoch %v", currentSyncLayer.GetEpoch())
 	ch := s.ticker.Subscribe()
 
-	if done := s.waitLayer(ch); done {
+	var exit bool
+	var flayer types.LayerID
+
+	if flayer, exit = s.waitLayer(ch); exit {
 		return fmt.Errorf("cloed while buffering first layer")
 	}
 
-	if done := s.waitLayer(ch); done {
-		return fmt.Errorf("cloed while buffering second layer ")
+	if err := s.syncSingleLayer(currentSyncLayer); err != nil {
+		return err
 	}
-
-	s.ticker.Unsubscribe(ch) // unsub, we won't be listening on this ch anymore
-	s.Info("done waiting for two ticks while listening to p2p")
-
-	// assumed to be weakly synced here
-	// just get the layers and validate
 
 	// get & validate first tick
 	if err := s.getAndValidateLayer(currentSyncLayer); err != nil {
@@ -512,16 +523,28 @@ func (s *Syncer) gossipSyncForOneFullLayer(currentSyncLayer types.LayerID) error
 		}
 	}
 
+	//todo: just set hare to listen when inProgress and remove inProgress2
+	s.setGossipBufferingStatus(inProgress2)
+
+	if _, done := s.waitLayer(ch); done {
+		return fmt.Errorf("cloed while buffering second layer ")
+	}
+
+	if err := s.syncSingleLayer(flayer); err != nil {
+		return err
+	}
+
 	// get & validate second tick
-	if err := s.getAndValidateLayer(currentSyncLayer + 1); err != nil {
+	if err := s.getAndValidateLayer(flayer); err != nil {
 		if err != database.ErrNotFound {
 			return err
 		}
-		if err := s.SetZeroBlockLayer(currentSyncLayer + 1); err != nil {
+		if err := s.SetZeroBlockLayer(flayer); err != nil {
 			return err
 		}
 	}
 
+	s.ticker.Unsubscribe(ch) // unsub, we won't be listening on this ch anymore
 	s.Info("done waiting for ticks and validation. setting gossip true")
 
 	// fully-synced - set gossip -synced to true
@@ -530,15 +553,40 @@ func (s *Syncer) gossipSyncForOneFullLayer(currentSyncLayer types.LayerID) error
 	return nil
 }
 
-func (s *Syncer) waitLayer(ch timesync.LayerTimer) bool {
+func (s *Syncer) syncSingleLayer(currentSyncLayer types.LayerID) error {
+	s.With().Info("syncing layer", log.FieldNamed("current_sync_layer", currentSyncLayer),
+		log.FieldNamed("last_ticked_layer", s.GetCurrentLayer()))
+
+	if s.shutdown() {
+		return errors.New("shutdown")
+	}
+
+	lyr, err := s.getLayerFromNeighbors(currentSyncLayer)
+	if err != nil {
+		s.With().Info("could not get layer from neighbors", currentSyncLayer, log.Err(err))
+		return err
+	}
+
+	if len(lyr.Blocks()) == 0 {
+		if err := s.SetZeroBlockLayer(currentSyncLayer); err != nil {
+			s.With().Error("handleNotSynced failed ", currentSyncLayer, log.Err(err))
+			return err
+		}
+	}
+	s.syncAtxs(currentSyncLayer)
+	return nil
+}
+
+func (s *Syncer) waitLayer(ch timesync.LayerTimer) (types.LayerID, bool) {
+	var l types.LayerID
 	select {
-	case <-ch:
+	case l = <-ch:
 		s.Debug("waited one layer")
 	case <-s.exit:
 		s.Debug("exit while buffering")
-		return true
+		return l, true
 	}
-	return false
+	return l, false
 }
 
 func (s *Syncer) getLayerFromNeighbors(currentSyncLayer types.LayerID) (*types.Layer, error) {
@@ -574,6 +622,15 @@ func (s *Syncer) getLayerFromNeighbors(currentSyncLayer types.LayerID) (*types.L
 	blocksArr, err := s.syncLayer(currentSyncLayer, blockIds)
 	if len(blocksArr) == 0 || err != nil {
 		return nil, fmt.Errorf("could not get blocks for layer %v %v", currentSyncLayer, err)
+	}
+
+	input, err := s.syncInputVector(currentSyncLayer)
+	if err != nil {
+		input = nil
+	}
+
+	if err := s.DB.SaveLayerInputVector(currentSyncLayer, input); err != nil {
+		s.Log.Warning("Could'nt save input vector to db %v", err)
 	}
 
 	return types.NewExistingLayer(types.LayerID(currentSyncLayer), blocksArr), nil
@@ -633,6 +690,24 @@ func (s *Syncer) syncLayer(layerID types.LayerID, blockIds []types.BlockID) ([]*
 	tmr.ObserveDuration()
 
 	return s.LayerBlocks(layerID)
+}
+
+func (s *Syncer) syncInputVector(layerID types.LayerID) ([]types.BlockID, error) {
+	//tmr := newMilliTimer(syncLaye	Time)
+	if r, err := s.DB.GetLayerInputVector(layerID); err == nil {
+		return r, nil
+	}
+
+	out := <-fetchWithFactory(newNeighborhoodWorker(s, 1, inputVectorReqFactory(layerID.Bytes())))
+	if out == nil {
+		return nil, fmt.Errorf("could not find input vector with any neighbor")
+	}
+
+	inputvec := out.([]types.BlockID)
+
+	//tmr.ObserveDuration()
+
+	return inputvec, nil
 }
 
 func (s *Syncer) getBlocks(jobID types.LayerID, blockIds []types.BlockID) error {
@@ -778,12 +853,11 @@ func (s *Syncer) blockSyntacticValidation(block *types.Block) ([]*types.Transact
 		return nil, nil, fmt.Errorf("block %v not syntacticly valid", block.ID())
 	}
 
-	// validate block's votes
-	if valid, err := validateVotes(block, s.ForBlockInView, s.Hdist, s.Log); valid == false || err != nil {
-		return nil, nil, fmt.Errorf("validate votes failed for block %v, %v", block.ID(), err)
-	}
-
 	return txs, atxs, nil
+}
+
+func combineBlockDiffs(blk types.Block) []types.BlockID {
+	return append(append(blk.ForDiff, blk.AgainstDiff...), blk.NeutralDiff...)
 }
 
 func (s *Syncer) validateBlockView(blk *types.Block) bool {
@@ -797,7 +871,7 @@ func (s *Syncer) validateBlockView(blk *types.Block) bool {
 		ch <- res
 		return nil
 	}
-	if res, err := s.blockQueue.addDependencies(blk.ID(), blk.ViewEdges, foo); err != nil {
+	if res, err := s.blockQueue.addDependencies(blk.ID(), combineBlockDiffs(*blk), foo); err != nil {
 		s.Error(fmt.Sprintf("block %v not syntactically valid", blk.ID()), err)
 		return false
 	} else if res == false {
@@ -878,41 +952,6 @@ func (s *Syncer) FetchBlock(ID types.BlockID) error {
 		return fmt.Errorf("stuff")
 	}
 	return nil
-}
-
-func validateVotes(blk *types.Block, forBlockfunc forBlockInView, depth int, lg log.Log) (bool, error) {
-	view := map[types.BlockID]struct{}{}
-	for _, b := range blk.ViewEdges {
-		view[b] = struct{}{}
-	}
-
-	vote := map[types.BlockID]struct{}{}
-	for _, b := range blk.BlockVotes {
-		vote[b] = struct{}{}
-	}
-
-	traverse := func(b *types.Block) (stop bool, err error) {
-		if _, ok := vote[b.ID()]; ok {
-			delete(vote, b.ID())
-		}
-		return len(vote) == 0, nil
-	}
-
-	// traverse only through the last Hdist layers
-	lowestLayer := blk.LayerIndex - types.LayerID(depth)
-	if blk.LayerIndex < types.LayerID(depth) {
-		lowestLayer = 0
-	}
-	err := forBlockfunc(view, lowestLayer, traverse)
-	if err == nil && len(vote) > 0 {
-		return false, fmt.Errorf("voting on blocks out of view (or out of Hdist), %v %s", vote, err)
-	}
-
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
 }
 
 func (s *Syncer) dataAvailability(blk *types.Block) ([]*types.Transaction, []*types.ActivationTx, error) {
@@ -1237,7 +1276,16 @@ func (s *Syncer) getAndValidateLayer(id types.LayerID) error {
 	if err != nil {
 		return err
 	}
-	s.ValidateLayer(lyr) // wait for layer validation
+
+	// TODO: Get hare results a.k.a input vector from - db/hare and replace this
+	inputVector, err := s.DB.GetLayerInputVector(id)
+	if err != nil {
+		inputVector = nil
+	}
+
+	s.Log.With().Info("getAndValidateLayer ", id.Field(), log.String("input_vector", fmt.Sprint(inputVector)), log.String("blocks", fmt.Sprint(types.BlockIDs(lyr.Blocks()))))
+
+	s.ValidateLayer(lyr, inputVector) // wait for layer validation
 	return nil
 }
 
