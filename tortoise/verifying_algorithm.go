@@ -14,6 +14,7 @@ type ThreadSafeVerifyingTortoise struct {
 	mutex sync.RWMutex
 }
 
+// Config holds the arguments and dependencies to create a verifying tortoise instance.
 type Config struct {
 	LayerSyze int
 	Database  blockDataProvider

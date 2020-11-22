@@ -52,6 +52,7 @@ import (
 	"github.com/spacemeshos/go-spacemesh/tortoise"
 	"github.com/spacemeshos/go-spacemesh/turbohare"
 
+	// profiler
 	_ "net/http/pprof"
 )
 
