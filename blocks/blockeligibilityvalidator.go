@@ -46,6 +46,10 @@ func NewBlockEligibilityValidator(committeeSize, genesisActiveSetSize uint32, la
 // BlockSignedAndEligible checks that a given block is signed and eligible. It returns true with no error or false and
 // an error that explains why validation failed.
 func (v BlockEligibilityValidator) BlockSignedAndEligible(block *types.Block) (bool, error) {
+	var activeSetSize uint32
+	var vrfPubkey []byte
+	var genesisNoAtx bool
+
 	epochNumber := block.LayerIndex.GetEpoch()
 	if epochNumber == 0 {
 		v.log.With().Warning("skipping epoch 0 block validation.",
@@ -66,12 +70,20 @@ func (v BlockEligibilityValidator) BlockSignedAndEligible(block *types.Block) (b
 		return false, fmt.Errorf("cannot get active set from block %v", activeSetBlock.ID())
 	}
 	//todo: optimise by using reference to active set size and cache active set size to not load all atxsIDs from db
-	activeSetSize := uint32(len(*activeSetBlock.ActiveSet))
-	atx, err := v.getValidAtx(block)
-	if err != nil {
-		return false, err
+
+	activeSetSize = uint32(len(*activeSetBlock.ActiveSet))
+	if block.ATXID == *types.EmptyATXID {
+		if !epochNumber.IsGenesis() {
+			return false, fmt.Errorf("no associated ATX in epoch %v", epochNumber)
+		}
+		genesisNoAtx = true
+	} else {
+		atx, err := v.getValidAtx(block)
+		if err != nil {
+			return false, err
+		}
+		vrfPubkey = atx.NodeID.VRFPublicKey
 	}
-	vrfPubkey := atx.NodeID.VRFPublicKey
 
 	if epochNumber.IsGenesis() {
 		v.log.With().Info("using genesisActiveSetSize",
@@ -93,6 +105,11 @@ func (v BlockEligibilityValidator) BlockSignedAndEligible(block *types.Block) (b
 	epochBeacon := v.beaconProvider.GetBeacon(epochNumber)
 	message := serializeVRFMessage(epochBeacon, epochNumber, counter)
 	vrfSig := block.EligibilityProof.Sig
+
+	if genesisNoAtx {
+		v.log.Info("skipping VRF validation, genesis block with no ATX") // TODO
+		return true, nil
+	}
 
 	res, err := v.validateVRF(message, vrfSig, vrfPubkey)
 	if err != nil {
