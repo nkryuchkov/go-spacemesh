@@ -798,7 +798,7 @@ func (db *DB) HandleAtxData(data []byte, syncer service.Fetcher) error {
 // FetchAtxReferences fetches positioning and prev atxs from peers if they are not found in db
 func (db *DB) FetchAtxReferences(atx *types.ActivationTx, f service.Fetcher) error {
 	if atx.PositioningATX != *types.EmptyATXID && atx.PositioningATX != db.goldenATXID {
-		db.log.Info("going to fetch pos atx %v of atx %v", atx.PositioningATX.ShortString(), atx.ID().ShortString())
+		db.log.Info("going to fetch pos atx %v of atx %v (golden atx: %v)", atx.PositioningATX, atx.ID(), db.goldenATXID)
 		err := f.FetchAtx(atx.PositioningATX)
 		if err != nil {
 			return err
@@ -806,7 +806,7 @@ func (db *DB) FetchAtxReferences(atx *types.ActivationTx, f service.Fetcher) err
 	}
 
 	if atx.PrevATXID != *types.EmptyATXID && atx.PrevATXID != db.goldenATXID {
-		db.log.Info("going to fetch prev atx %v of atx %v", atx.PrevATXID.ShortString(), atx.ID().ShortString())
+		db.log.Info("going to fetch prev atx %v of atx %v (golden atx: %v)", atx.PrevATXID, atx.ID(), db.goldenATXID)
 		err := f.FetchAtx(atx.PrevATXID)
 		if err != nil {
 			return err
