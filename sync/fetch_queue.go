@@ -3,11 +3,12 @@ package sync
 import (
 	"errors"
 	"fmt"
-	"github.com/spacemeshos/go-spacemesh/common/types"
-	"github.com/spacemeshos/go-spacemesh/log"
 	"runtime"
 	"runtime/debug"
 	"sync"
+
+	"github.com/spacemeshos/go-spacemesh/common/types"
+	"github.com/spacemeshos/go-spacemesh/log"
 )
 
 type fetchPoetProofFunc func(poetProofRef []byte) error
@@ -243,7 +244,7 @@ func newAtxQueue(s *Syncer, fetchPoetProof fetchPoetProofFunc) *atxQueue {
 
 //we could get rid of this if we had a unified id type
 func (atx atxQueue) HandleAtxs(atxids []types.ATXID) ([]*types.ActivationTx, error) {
-	atx.Log.Debug("going to fetch %v", atxids)
+	atx.Log.Info("going to fetch %v", atxids)
 	atxItems := make([]types.Hash32, 0, len(atxids))
 	for _, i := range atxids {
 		atxItems = append(atxItems, i.Hash32())
