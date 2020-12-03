@@ -350,13 +350,13 @@ func (db *DB) SyntacticallyValidateAtx(atx *types.ActivationTx) error {
 		return fmt.Errorf("node ids don't match")
 	}
 
-	if atx.PrevATXID == *types.EmptyATXID {
-		return fmt.Errorf("empty previous ATX")
-	}
+	// if atx.PrevATXID == *types.EmptyATXID {
+	// 	return fmt.Errorf("empty previous ATX")
+	// }
 
-	if atx.PositioningATX == *types.EmptyATXID {
-		return fmt.Errorf("empty positioning ATX")
-	}
+	// if atx.PositioningATX == *types.EmptyATXID {
+	// 	return fmt.Errorf("empty positioning ATX")
+	// }
 
 	if atx.PrevATXID != db.goldenATXID {
 		err = db.ValidateSignedAtx(*pub, atx)
