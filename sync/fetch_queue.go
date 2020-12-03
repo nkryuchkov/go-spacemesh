@@ -285,7 +285,7 @@ func updateAtxDependencies(invalidate func(id types.Hash32, valid bool), sValida
 				}
 				err = sValidateAtx(atx)
 				if err != nil {
-					logger.Warning("failed to validate atx %v job %s %s", atx.ShortString(), id.ShortString(), err)
+					logger.Warning("failed to validate atx %v, job %s: %s", atx.ShortString(), id.ShortString(), err)
 					invalidate(id, false)
 					continue
 				}
