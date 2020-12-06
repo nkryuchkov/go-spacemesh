@@ -520,12 +520,8 @@ func (app *SpacemeshApp) initServices(nodeID types.NodeID,
 
 	goldenATXID := types.ATXID(types.HexToHash32(app.Config.GoldenATXID))
 	if goldenATXID == *types.EmptyATXID {
-		app.log.Panic("invalid Golden ATX ID")
-	}
-
-	if goldenATXID == *types.EmptyATXID {
 		app.log.Error("invalid Golden ATX ID")
-		app.log.Panic("invalid Golden ATX ID")
+		// app.log.Panic("invalid Golden ATX ID")
 	}
 
 	atxdb := activation.NewDB(atxdbstore, idStore, mdb, layersPerEpoch, goldenATXID, validator, app.addLogger(AtxDbLogger, lg))
