@@ -29,6 +29,7 @@ bootstrap:
     layer-average-size: '20'
     hare-wakeup-delta: '10'
     executable-path: '/bin/go-p2p'
+    golden-atx: '0x5678'
   deployment_type: deployment # default:deployment
 # IMPORTANT: all clients on the same suite should contain the same args (hare-committee-size, hare-max-adversaries etc)!
 client:
@@ -51,6 +52,7 @@ client:
     layer-average-size: '20'
     hare-wakeup-delta: '10'
     executable-path: '/bin/go-p2p'
+    golden-atx: '0x5678'
   deployment_type: deployment # default:deployment
 # IMPORTANT: all clients on the same suite should contain the same args (hare-committee-size, hare-max-adversaries etc)!
 clientv2:
@@ -74,6 +76,7 @@ clientv2:
     layer-duration-sec: '60'
     layer-average-size: '20'
     hare-wakeup-delta: '10'
+    golden-atx: '0x5678'
   deployment_type: deployment # default:deployment
 elastic:
   host: elastic.spacemesh.io

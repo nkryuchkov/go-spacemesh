@@ -29,6 +29,7 @@ bootstrap:
     layer-duration-sec: '80'
     executable-path: '/bin/go-hare'
     layers-per-epoch: '3'
+    golden-atx: '0x5678'
 client:
   image: 'spacemeshos/go-spacemesh:develop'
   command: '/bin/go-harness'
@@ -49,6 +50,7 @@ client:
     layer-duration-sec: '80'
     layers-per-epoch: '3'
     executable-path: '/bin/go-hare'
+    golden-atx: '0x5678'
 elastic:
   host: elastic.spacemesh.io
   port: 9200

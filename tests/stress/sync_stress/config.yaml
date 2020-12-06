@@ -28,6 +28,7 @@ bootstrap:
     storage-path: 'spacemesh-sync-data'
     version: 'TwoAndHalfDaysSim/'
     hdist: '5'
+    golden-atx: '0x5678'
 client:
   image: 'spacemeshos/go-spacemesh:develop'
   command: '/bin/go-sync'
@@ -46,6 +47,7 @@ client:
     storage-path: 'spacemesh-sync-data'
     version: 'TwoAndHalfDaysSim/'
     hdist: '5'
+    golden-atx: '0x5678'
 elastic:
   host: elastic.spacemesh.io
   port: 9200

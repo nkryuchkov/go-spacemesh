@@ -28,6 +28,7 @@ bootstrap:
     hare-wakeup-delta: '5'
     layer-duration-sec: '60'
     layers-per-epoch: '3'
+    golden-atx: '0x5678'
 
 client:
   image: 'spacemeshos/go-spacemesh:develop'
@@ -48,6 +49,7 @@ client:
     hare-wakeup-delta: '5'
     layer-duration-sec: '60'
     layers-per-epoch: '3'
+    golden-atx: '0x5678'
 
 elastic:
   host: elastic.spacemesh.io

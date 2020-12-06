@@ -29,6 +29,7 @@ bootstrap:
     layer-duration-sec: '60'
     layer-average-size: '20'
     hare-wakeup-delta: '10'
+    golden-atx: '0x5678'
   deployment_type: statefulset
 elastic:
   host: elastic.spacemesh.io
