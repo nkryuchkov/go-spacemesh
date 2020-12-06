@@ -352,12 +352,12 @@ func (db *DB) SyntacticallyValidateAtx(atx *types.ActivationTx) error {
 
 	if atx.PrevATXID == *types.EmptyATXID {
 		db.log.Error("validating ATX with empty prev ATX ID, golden ATX: %v", db.goldenATXID)
-		return fmt.Errorf("empty previous ATX")
+		// return fmt.Errorf("empty previous ATX")
 	}
 
 	if atx.PositioningATX == *types.EmptyATXID {
 		db.log.Error("validating ATX with empty pos ATX ID, golden ATX: %v", db.goldenATXID)
-		return fmt.Errorf("empty positioning ATX")
+		// return fmt.Errorf("empty positioning ATX")
 	}
 
 	if atx.PrevATXID != db.goldenATXID {
