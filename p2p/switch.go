@@ -4,7 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	inet "net"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/spacemeshos/go-spacemesh/common/types"
 	"github.com/spacemeshos/go-spacemesh/log"
@@ -21,11 +25,6 @@ import (
 	"github.com/spacemeshos/go-spacemesh/p2p/service"
 	"github.com/spacemeshos/go-spacemesh/priorityq"
 	"github.com/spacemeshos/go-spacemesh/timesync"
-
-	inet "net"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
 // ConnectingTimeout is the timeout we wait when trying to connect a neighborhood
@@ -121,7 +120,12 @@ func (s *Switch) waitForGossip() error {
 }
 
 func (s *Switch) GossipReady() <-chan struct{} {
-	return s.gossipC
+	if s.config.SwarmConfig.Gossip {
+		return s.gossipC
+	}
+	ch := make(chan struct{})
+	close(ch)
+	return ch
 }
 
 // newSwarm creates a new P2P instance, configured by config, if a NodeID is given it tries to load if from `datadir`,
@@ -711,6 +715,18 @@ func (s *Switch) askForMorePeers() {
 	s.outpeersMutex.RUnlock()
 	req := s.config.SwarmConfig.RandomConnections - numpeers
 	if req <= 0 {
+		// If 0 connections are required, the condition above is always true,
+		// so gossip needs to be considered ready in this case.
+		if s.config.SwarmConfig.RandomConnections == 0 {
+			select {
+			case <-s.initial:
+				// Nothing to do if channel is closed.
+				break
+			default:
+				// Close channel if it is not closed.
+				close(s.initial)
+			}
+		}
 		return
 	}
 

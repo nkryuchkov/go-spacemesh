@@ -4,10 +4,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/spacemeshos/go-spacemesh/events"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/spacemeshos/go-spacemesh/events"
+
+	"strconv"
 
 	"github.com/spacemeshos/go-spacemesh/common/types"
 	"github.com/spacemeshos/go-spacemesh/database"
@@ -19,7 +22,6 @@ import (
 	"github.com/spacemeshos/go-spacemesh/p2p/service"
 	"github.com/spacemeshos/go-spacemesh/rand"
 	"github.com/spacemeshos/go-spacemesh/timesync"
-	"strconv"
 )
 
 type forBlockInView func(view map[types.BlockID]struct{}, layer types.LayerID, blockHandler func(block *types.Block) (bool, error)) error
@@ -112,7 +114,7 @@ const (
 	pending     status = 0
 	inProgress  status = 1
 	done        status = 2
-	inProgress2 status = 3
+	inProgress2 status = 3 // TODO: remove
 
 	blockMsg      server.MessageType = 1
 	layerHashMsg  server.MessageType = 2
@@ -276,22 +278,23 @@ func (s *Syncer) ListenToGossip() bool {
 func (s *Syncer) setGossipBufferingStatus(status status) {
 	s.gossipLock.Lock()
 	defer s.gossipLock.Unlock()
+
 	if status == s.gossipSynced {
 		return
 	}
+
 	s.Info("setting gossip to '%s' ", status.String())
 	s.notifySubscribers(s.gossipSynced, status)
 	s.gossipSynced = status
-
 }
 
-// IsSynced returns true if the node is synced false otherwise
+// IsSynced returns true if the node is synced, false otherwise.
 func (s *Syncer) IsSynced() bool {
 	s.Info("sync state w: %v, g:%v layer : %v latest: %v", s.weaklySynced(s.GetCurrentLayer()), s.getGossipBufferingStatus(), s.GetCurrentLayer(), s.LatestLayer())
 	return s.weaklySynced(s.GetCurrentLayer()) && s.getGossipBufferingStatus() == done
 }
 
-// IsSynced returns true if the node is synced false otherwise
+// IsHareSynced returns true if the Hare on node is synced, false otherwise.
 func (s *Syncer) IsHareSynced() bool {
 	return s.getGossipBufferingStatus() == inProgress || s.IsSynced()
 }
@@ -440,27 +443,12 @@ func (s *Syncer) handleNotSynced(currentSyncLayer types.LayerID) {
 	// first, bring all the data of the prev layers
 	// Note: lastTicked() is not constant but updates as ticks are received
 	for ; currentSyncLayer < s.GetCurrentLayer(); currentSyncLayer++ {
-		s.With().Info("syncing layer", log.FieldNamed("current_sync_layer", currentSyncLayer),
-			log.FieldNamed("last_ticked_layer", s.GetCurrentLayer()))
-
-		if s.shutdown() {
-			return
-		}
-
-		lyr, err := s.getLayerFromNeighbors(currentSyncLayer)
+		layer, err := s.syncSingleLayer(currentSyncLayer)
 		if err != nil {
-			s.With().Info("could not get layer from neighbors", currentSyncLayer, log.Err(err))
 			return
 		}
 
-		if len(lyr.Blocks()) == 0 {
-			if err := s.SetZeroBlockLayer(currentSyncLayer); err != nil {
-				s.With().Error("handleNotSynced failed ", currentSyncLayer, log.Err(err))
-				return
-			}
-		}
-		s.syncAtxs(currentSyncLayer)
-		s.ValidateLayer(lyr) // wait for layer validation
+		s.ValidateLayer(layer) // wait for layer validation
 	}
 
 	// wait for two ticks to ensure we are fully synced before we open gossip or validate the current layer
@@ -484,19 +472,16 @@ func (s *Syncer) syncAtxs(currentSyncLayer types.LayerID) {
 // after that we are assumed to have all the data required for validation so we can validate and open gossip
 // opening gossip in weakly-synced transition us to fully-synced
 func (s *Syncer) gossipSyncForOneFullLayer(currentSyncLayer types.LayerID) error {
-	// listen to gossip
 	// subscribe and wait for two ticks
 	s.Info("waiting for two ticks while p2p is open, epoch %v", currentSyncLayer.GetEpoch())
 	ch := s.ticker.Subscribe()
 
-	var exit bool
-	var flayer types.LayerID
-
-	if flayer, exit = s.waitLayer(ch); exit {
-		return fmt.Errorf("cloed while buffering first layer")
+	firstLayer, exit := s.waitLayer(ch)
+	if exit {
+		return fmt.Errorf("closed while buffering first layer")
 	}
 
-	if err := s.syncSingleLayer(currentSyncLayer); err != nil {
+	if _, err := s.syncSingleLayer(currentSyncLayer); err != nil {
 		return err
 	}
 
@@ -510,6 +495,7 @@ func (s *Syncer) gossipSyncForOneFullLayer(currentSyncLayer types.LayerID) error
 		}
 	}
 
+	// listen to gossip
 	//todo: just set hare to listen when inProgress and remove inProgress2
 	s.setGossipBufferingStatus(inProgress)
 
@@ -517,16 +503,16 @@ func (s *Syncer) gossipSyncForOneFullLayer(currentSyncLayer types.LayerID) error
 		return fmt.Errorf("cloed while buffering second layer ")
 	}
 
-	if err := s.syncSingleLayer(flayer); err != nil {
+	if _, err := s.syncSingleLayer(firstLayer); err != nil {
 		return err
 	}
 
 	// get & validate second tick
-	if err := s.getAndValidateLayer(flayer); err != nil {
+	if err := s.getAndValidateLayer(firstLayer); err != nil {
 		if err != database.ErrNotFound {
 			return err
 		}
-		if err := s.SetZeroBlockLayer(flayer); err != nil {
+		if err := s.SetZeroBlockLayer(firstLayer); err != nil {
 			return err
 		}
 	}
@@ -540,28 +526,30 @@ func (s *Syncer) gossipSyncForOneFullLayer(currentSyncLayer types.LayerID) error
 	return nil
 }
 
-func (s *Syncer) syncSingleLayer(currentSyncLayer types.LayerID) error {
+func (s *Syncer) syncSingleLayer(currentSyncLayer types.LayerID) (*types.Layer, error) {
 	s.With().Info("syncing layer", log.FieldNamed("current_sync_layer", currentSyncLayer),
 		log.FieldNamed("last_ticked_layer", s.GetCurrentLayer()))
 
 	if s.shutdown() {
-		return errors.New("shutdown")
+		return nil, errors.New("shutdown")
 	}
 
-	lyr, err := s.getLayerFromNeighbors(currentSyncLayer)
+	layer, err := s.getLayerFromNeighbors(currentSyncLayer)
 	if err != nil {
 		s.With().Info("could not get layer from neighbors", currentSyncLayer, log.Err(err))
-		return err
+		return layer, err
 	}
 
-	if len(lyr.Blocks()) == 0 {
+	if len(layer.Blocks()) == 0 {
 		if err := s.SetZeroBlockLayer(currentSyncLayer); err != nil {
-			s.With().Error("handleNotSynced failed ", currentSyncLayer, log.Err(err))
-			return err
+			s.With().Error("syncSingleLayer failed ", currentSyncLayer, log.Err(err))
+			return layer, err
 		}
 	}
+
 	s.syncAtxs(currentSyncLayer)
-	return nil
+
+	return layer, nil
 }
 
 func (s *Syncer) waitLayer(ch timesync.LayerTimer) (types.LayerID, bool) {
@@ -578,7 +566,7 @@ func (s *Syncer) waitLayer(ch timesync.LayerTimer) (types.LayerID, bool) {
 
 func (s *Syncer) getLayerFromNeighbors(currentSyncLayer types.LayerID) (*types.Layer, error) {
 	if len(s.peers.GetPeers()) == 0 {
-		return nil, fmt.Errorf("no peers ")
+		return nil, fmt.Errorf("no peers")
 	}
 
 	// fetch layer hash from each peer

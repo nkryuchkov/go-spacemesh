@@ -246,8 +246,8 @@ func (sn *Node) SendMessage(peerPubkey p2pcrypto.PublicKey, protocol string, pay
 
 // SendMessage send a message to another simulated node.
 func (sn *Node) GossipReady() <-chan struct{} {
-	c := make(chan struct{}, 1)
-	c <- struct{}{}
+	c := make(chan struct{})
+	close(c)
 	return c
 }
 
