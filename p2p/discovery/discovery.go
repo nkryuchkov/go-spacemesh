@@ -66,7 +66,7 @@ type bootstrapper interface {
 }
 
 var (
-	// ErrLookupFailed determines that we could'nt lookup this node in the routing table or network
+	// ErrLookupFailed determines that we couldn't lookup this node in the routing table or network
 	ErrLookupFailed = errors.New("failed to lookup node in the network")
 	// ErrEmptyRoutingTable means that our routing table is empty thus we can't lookup any node (so we can't query any)
 	ErrEmptyRoutingTable = errors.New("no nodes to query - routing table is empty")
@@ -165,7 +165,7 @@ func New(ln node.LocalNode, config config.SwarmConfig, service server.Service, p
 	for _, n := range config.BootstrapNodes {
 		nd, err := node.ParseNode(n)
 		if err != nil {
-			d.logger.Warning("Could'nt parse bootstrap node string skipping str=%v, err=%v", n, err)
+			d.logger.Warning("Couldn't parse bootstrap node string skipping str=%v, err=%v", n, err)
 			// TODO : handle errors
 			continue
 		}

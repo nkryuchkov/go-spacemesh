@@ -516,9 +516,9 @@ func (s *Switch) listenToNetworkMessages() {
 // onRemoteClientMessage possible errors
 
 var (
-	// ErrBadFormat1 could'nt deserialize the payload
+	// ErrBadFormat1 couldn't deserialize the payload
 	ErrBadFormat1 = errors.New("bad msg format, couldn't deserialize 1")
-	// ErrBadFormat2 could'nt deserialize the protocol message payload
+	// ErrBadFormat2 couldn't deserialize the protocol message payload
 	ErrBadFormat2 = errors.New("bad msg format, couldn't deserialize 2")
 	// ErrOutOfSync is returned when message timestamp was out of sync
 	ErrOutOfSync = errors.New("received out of sync msg")
@@ -753,7 +753,7 @@ func (s *Switch) askForMorePeers() {
 		})
 		return
 	}
-	// if we could'nt get any maybe were initializing
+	// if we couldn't get any maybe were initializing
 	// wait a little bit before trying again
 	tmr := time.NewTimer(NoResultsInterval)
 	defer tmr.Stop()

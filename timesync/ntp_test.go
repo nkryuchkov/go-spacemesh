@@ -2,9 +2,10 @@ package timesync
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/spacemeshos/go-spacemesh/crypto"
 	"github.com/spacemeshos/go-spacemesh/timesync/config"
@@ -51,7 +52,7 @@ func TestSortableDurations_RemoveExtremes(t *testing.T) {
 	// Generate slice of len (random) of random durations (with max 100 seconds)
 	durations, err := generateRandomDurations()
 	if err != nil {
-		t.Error("could'nt create durations")
+		t.Error("couldn't create durations")
 	}
 	baseLen := len(durations)
 	durations.RemoveExtremes()

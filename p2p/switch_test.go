@@ -2,19 +2,22 @@ package p2p
 
 import (
 	"fmt"
+	inet "net"
+	"sync/atomic"
+	"testing"
+	"time"
+
 	"github.com/spacemeshos/go-spacemesh/common/types"
 	"github.com/spacemeshos/go-spacemesh/log"
 	"github.com/spacemeshos/go-spacemesh/nattraversal"
 	"github.com/spacemeshos/go-spacemesh/p2p/connectionpool"
 	"github.com/spacemeshos/go-spacemesh/p2p/discovery"
 	"github.com/stretchr/testify/require"
-	inet "net"
-	"sync/atomic"
-	"testing"
-	"time"
 
 	"context"
 	"errors"
+	"sync"
+
 	"github.com/spacemeshos/go-spacemesh/p2p/config"
 	"github.com/spacemeshos/go-spacemesh/p2p/net"
 	"github.com/spacemeshos/go-spacemesh/p2p/node"
@@ -22,7 +25,6 @@ import (
 	"github.com/spacemeshos/go-spacemesh/p2p/service"
 	"github.com/spacemeshos/go-spacemesh/rand"
 	"github.com/stretchr/testify/assert"
-	"sync"
 )
 
 type cpoolMock struct {
@@ -327,7 +329,7 @@ func TestSwarm_MultipleMessages(t *testing.T) {
 	require.NoError(t, p2.Start())
 
 	err := p2.SendMessage(p1.lNode.PublicKey(), exampleProtocol, []byte(examplePayload))
-	require.Error(t, err, "ERR") // should'nt be in routing table
+	require.Error(t, err, "ERR") // shouldn't be in routing table
 
 	_, err = p2.cPool.GetConnection(p1.network.LocalAddr(), p1.lNode.PublicKey())
 	require.NoError(t, err)
@@ -667,7 +669,7 @@ func Test_Swarm_getMorePeers(t *testing.T) {
 
 	conn, _ := n.SubscribePeerEvents()
 
-	res := n.getMorePeers(0) // this should'nt work
+	res := n.getMorePeers(0) // this shouldn't work
 	assert.Equal(t, res, 0)
 	assertNoNewPeerEvent(t, conn)
 }
@@ -718,7 +720,7 @@ func Test_Swarm_getMorePeers3(t *testing.T) {
 	}
 
 	n.cPool = cpm
-	res := n.getMorePeers(1) // this should'nt work
+	res := n.getMorePeers(1) // this shouldn't work
 	assert.Equal(t, res, 0)
 	assertNoNewPeerEvent(t, conn)
 }
@@ -767,7 +769,7 @@ func Test_Swarm_getMorePeers5(t *testing.T) {
 
 	conn, _ := n.SubscribePeerEvents()
 
-	//res := n.getMorePeers(0) // this should'nt work
+	//res := n.getMorePeers(0) // this shouldn't work
 	//assert.Equal(t, res, 0)
 	//assertNoNewPeerEvent(t, conn)
 
@@ -800,7 +802,7 @@ func Test_Swarm_getMorePeers6(t *testing.T) {
 
 	conn, _ := n.SubscribePeerEvents()
 
-	//res := n.getMorePeers(0) // this should'nt work
+	//res := n.getMorePeers(0) // this shouldn't work
 	//assert.Equal(t, res, 0)
 	//assertNoNewPeerEvent(t, conn)
 

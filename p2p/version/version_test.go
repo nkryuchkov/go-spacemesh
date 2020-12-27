@@ -56,7 +56,7 @@ func TestCheckNodeVersion(t *testing.T) {
 
 	for _, te := range testNewClient {
 		ok, err := CheckNodeVersion(getSemver(te.version), te.minVersion)
-		assert.NoError(t, err, "Should'nt return error")
+		assert.NoError(t, err, "Shouldn't return error")
 		assert.True(t, ok, "Should return true on same or higher version")
 	}
 
@@ -69,7 +69,6 @@ func TestCheckNodeVersion(t *testing.T) {
 	for _, te := range testTooOld {
 		ok, err := CheckNodeVersion(getSemver(te.version), te.minVersion)
 		assert.False(t, ok, "Should return false when version is older than min version")
-		assert.NoError(t, err, "Shuold'nt return error when client is older")
+		assert.NoError(t, err, "Shouldn't return error when client is older")
 	}
-
 }
