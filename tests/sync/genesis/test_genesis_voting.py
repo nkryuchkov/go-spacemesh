@@ -24,7 +24,7 @@ def test_unsync_while_genesis(init_session, setup_bootstrap, start_poet, add_cur
 
     time_to_create_block_since_startup = int(testconfig['client']['args']['layers-per-epoch']) * 2 * layer_duration
     time_before_first_block = int(testconfig["genesis_delta"]) + time_to_create_block_since_startup
-    sync_delay = 100
+    sync_delay = 400
     time_before_first_block += sync_delay
 
     layers_to_wait = 8
