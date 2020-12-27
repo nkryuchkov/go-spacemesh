@@ -697,10 +697,13 @@ loop:
 	for {
 		select {
 		case <-s.morePeersReq:
+			s.logger.Info("calling askForMorePeers")
 			s.logger.Debug("loop: got morePeersReq")
 			s.askForMorePeers()
+			s.logger.Info("called askForMorePeers")
 		//todo: try getting the connections (heartbeat)
 		case <-s.shutdown:
+			s.logger.Info("shutting down askForMorePeers")
 			break loop // maybe error ?
 		}
 	}
@@ -709,20 +712,24 @@ loop:
 // askForMorePeers checks the number of peers required and tries to match this number. if there are enough peers it returns.
 // if it failed it issues a one second timeout and then sends a request to try again.
 func (s *Switch) askForMorePeers() {
+	s.logger.Info("askForMorePeers: start")
 	// check how much peers needed
 	s.outpeersMutex.RLock()
 	numpeers := len(s.outpeers)
 	s.outpeersMutex.RUnlock()
 	req := s.config.SwarmConfig.RandomConnections - numpeers
+	s.logger.Info("askForMorePeers: req = %v", req)
 	if req <= 0 {
 		// If 0 connections are required, the condition above is always true,
 		// so gossip needs to be considered ready in this case.
 		if s.config.SwarmConfig.RandomConnections == 0 {
 			select {
 			case <-s.initial:
+				s.logger.Info("askForMorePeers: s.initial closed")
 				// Nothing to do if channel is closed.
 				break
 			default:
+				s.logger.Info("askForMorePeers: closing s.initial")
 				// Close channel if it is not closed.
 				close(s.initial)
 			}
@@ -730,6 +737,7 @@ func (s *Switch) askForMorePeers() {
 		return
 	}
 
+	s.logger.Info("askForMorePeers: getting more peers")
 	// try to connect eq peers
 	s.getMorePeers(req)
 
@@ -739,8 +747,14 @@ func (s *Switch) askForMorePeers() {
 	s.outpeersMutex.RUnlock()
 	// announce if initial number of peers achieved
 	// todo: better way then going in this every time ?
+
+	s.logger.Info("askForMorePeers: got more peers: %v, want: %v", numpeers, s.config.SwarmConfig.RandomConnections)
+
 	if numpeers >= s.config.SwarmConfig.RandomConnections {
+		s.logger.Info("askForMorePeers: numpeers >= s.config.SwarmConfig.RandomConnections ")
 		s.initOnce.Do(func() {
+			s.logger.Info("askForMorePeers: initOnce")
+
 			s.logger.Info("gossip; connected to initial required neighbors - %v", len(s.outpeers))
 			close(s.initial)
 			s.outpeersMutex.RLock()
@@ -748,6 +762,9 @@ func (s *Switch) askForMorePeers() {
 			for pk := range s.outpeers {
 				strs = append(strs, pk.String())
 			}
+
+			s.logger.Info("askForMorePeers: neighbors list: [%v]", strings.Join(strs, ","))
+
 			s.logger.Debug("neighbors list: [%v]", strings.Join(strs, ","))
 			s.outpeersMutex.RUnlock()
 		})
@@ -757,16 +774,24 @@ func (s *Switch) askForMorePeers() {
 	// wait a little bit before trying again
 	tmr := time.NewTimer(NoResultsInterval)
 	defer tmr.Stop()
+
+	s.logger.Info("askForMorePeers: last select")
+
 	select {
 	case <-s.shutdown:
+		s.logger.Info("askForMorePeers: last select: <-s.shutdown")
 		return
 	case <-tmr.C:
+		s.logger.Info("askForMorePeers: last select: <-tmr.C")
 		s.morePeersReq <- struct{}{}
 	}
+
+	s.logger.Info("askForMorePeers: last select finished")
 }
 
 // getMorePeers tries to fill the `outpeers` slice with dialed outbound peers that we selected from the discovery.
 func (s *Switch) getMorePeers(numpeers int) int {
+	s.logger.Info("askForMorePeers: getMorePeers: numpeers = %v", numpeers)
 
 	if numpeers == 0 {
 		return 0
@@ -775,6 +800,9 @@ func (s *Switch) getMorePeers(numpeers int) int {
 	// discovery should provide us with random peers to connect to
 	nds := s.discover.SelectPeers(s.ctx, numpeers)
 	ndsLen := len(nds)
+
+	s.logger.Info("askForMorePeers: getMorePeers: found %v nds: %v", ndsLen, nds)
+
 	if ndsLen == 0 {
 		s.logger.Debug("Peer sampler returned nothing.")
 		// this gets busy at start so we spare a second
@@ -793,9 +821,12 @@ func (s *Switch) getMorePeers(numpeers int) int {
 	for i := 0; i < ndsLen; i++ {
 		go func(nd *node.Info, reportChan chan cnErr) {
 			if nd.PublicKey() == s.lNode.PublicKey() {
+				s.logger.Info("askForMorePeers: getMorePeers: connection to self: %v", nd.PublicKey())
 				reportChan <- cnErr{nd, errors.New("connection to self")}
 				return
 			}
+
+			s.logger.Info("askForMorePeers: getMorePeers: connection to %v", nd.PublicKey())
 			s.discover.Attempt(nd.PublicKey())
 			addr := inet.TCPAddr{IP: inet.ParseIP(nd.IP.String()), Port: int(nd.ProtocolPort)}
 			_, err := s.cPool.GetConnection(&addr, nd.PublicKey())
@@ -805,25 +836,32 @@ func (s *Switch) getMorePeers(numpeers int) int {
 
 	total, bad := 0, 0
 	tm := time.NewTimer(s.connectingTimeout) // todo: configure
+
+	s.logger.Info("askForMorePeers: getMorePeers: starting loop")
 loop:
 	for {
+		s.logger.Info("askForMorePeers: getMorePeers: loop iteration: selecting")
 		select {
 		// NOTE: breaks here intentionally break the select and not the for loop
 		case cne := <-res:
+			s.logger.Info("askForMorePeers: getMorePeers: loop iteration: cne := <-res, cne: %v", cne)
 			total++ // We count i every time to know when to close the channel
 
 			if cne.err != nil {
+				s.logger.Info("askForMorePeers: getMorePeers: loop iteration: can't establish connection with sampled peer %v, %v", cne.n.PublicKey(), cne.err)
 				s.logger.Debug("can't establish connection with sampled peer %v, %v", cne.n.PublicKey(), cne.err)
 				bad++
 				break
 			}
 
 			pk := cne.n.PublicKey()
+			s.logger.Info("askForMorePeers: getMorePeers: loop iteration: pk = %v", pk)
 
 			s.inpeersMutex.Lock()
 			_, ok := s.inpeers[pk]
 			s.inpeersMutex.Unlock()
 			if ok {
+				s.logger.Info("askForMorePeers: getMorePeers: loop iteration: not allowing peers from inbound to upgrade to outbound to prevent poisoning, peer %v", cne.n.PublicKey())
 				s.logger.Debug("not allowing peers from inbound to upgrade to outbound to prevent poisoning, peer %v", cne.n.PublicKey())
 				bad++
 				break
@@ -832,6 +870,7 @@ loop:
 			s.outpeersMutex.Lock()
 			if _, ok := s.outpeers[pk]; ok {
 				s.outpeersMutex.Unlock()
+				s.logger.Info("askForMorePeers: getMorePeers: loop iteration: selected an already outbound peer. not counting that peer.", cne.n.PublicKey())
 				s.logger.Debug("selected an already outbound peer. not counting that peer.", cne.n.PublicKey())
 				bad++
 				break
@@ -842,18 +881,25 @@ loop:
 			s.discover.Good(cne.n.PublicKey())
 			s.publishNewPeer(cne.n.PublicKey())
 			metrics.OutboundPeers.Add(1)
+
+			s.logger.Info("askForMorePeers: getMorePeers: loop iteration: Neighborhood: Added peer to peer list %v", cne.n.PublicKey())
 			s.logger.Debug("Neighborhood: Added peer to peer list %v", cne.n.PublicKey())
 		case <-tm.C:
+			s.logger.Info("askForMorePeers: getMorePeers: loop iteration: <-tm.C")
 			break loop
 		case <-s.shutdown:
+			s.logger.Info("askForMorePeers: getMorePeers: loop iteration: <-s.shutdown")
 			break loop
 		}
+		s.logger.Info("askForMorePeers: getMorePeers: loop iteration: selected")
 
 		if total == ndsLen {
+			s.logger.Info("askForMorePeers: getMorePeers: loop iteration: total = ndsLen = %v", total)
 			break loop
 		}
 	}
 
+	s.logger.Info("askForMorePeers: getMorePeers: done, total = %v, bad = %v, result = %v", total, bad, total-bad)
 	return total - bad
 }
 
