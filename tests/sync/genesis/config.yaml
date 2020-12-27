@@ -14,7 +14,7 @@ bootstrap:
   command: '/bin/go-harness'
   replicas: 1
   args:
-    randcon: '8'
+    randcon: '4'
     hare-committee-size: '10'
     hare-max-adversaries: '5'
     hare-round-duration-sec: '10'
