@@ -674,7 +674,6 @@ func (app *SpacemeshApp) HareFactory(mdb *mesh.DB, swarm service.Service, sgn ha
 func (app *SpacemeshApp) startServices() {
 	//app.blockListener.Start()
 	go app.startSyncer()
-	// app.syncer.Start()
 
 	err := app.hare.Start()
 	if err != nil {
@@ -911,11 +910,11 @@ func (app *SpacemeshApp) getIdentityFile() (string, error) {
 }
 
 func (app *SpacemeshApp) startSyncer() {
-	// if app.P2P == nil {
-	// 	app.log.Error("Syncer is started before P2P is initialized")
-	// } else {
-	// 	<-app.P2P.GossipReady()
-	// }
+	if app.P2P == nil {
+		app.log.Error("Syncer is started before P2P is initialized")
+	} else {
+		<-app.P2P.GossipReady()
+	}
 	app.syncer.Start()
 }
 
