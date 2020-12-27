@@ -3,6 +3,7 @@ package blocks
 import (
 	"errors"
 	"fmt"
+
 	"github.com/spacemeshos/go-spacemesh/common/types"
 	"github.com/spacemeshos/go-spacemesh/log"
 	"github.com/spacemeshos/go-spacemesh/p2p/service"
@@ -148,15 +149,15 @@ func (bh BlockHandler) blockSyntacticValidation(block *types.Block, syncer servi
 		}
 	}
 
-	// try fetch referenced ATXs
-	err := bh.fetchAllReferencedAtxs(block, syncer)
-	if err != nil {
-		return err
-	}
-
 	// fast validation checks if there are no duplicate ATX in active set and no duplicate TXs as well
 	if err := bh.fastValidation(block); err != nil {
 		bh.Log.Error("failed fast validation block %v e: %v", block.ID(), err)
+		return err
+	}
+
+	// try fetch referenced ATXs
+	err := bh.fetchAllReferencedAtxs(block, syncer)
+	if err != nil {
 		return err
 	}
 

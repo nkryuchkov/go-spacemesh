@@ -451,6 +451,12 @@ func (s *Syncer) handleNotSynced(currentSyncLayer types.LayerID) {
 		s.ValidateLayer(layer) // wait for layer validation
 	}
 
+	// if we are in the first epoch, we need to listen to gossip still
+	if currentSyncLayer.GetEpoch() < 3 {
+		s.setGossipBufferingStatus(done)
+		return
+	}
+
 	// wait for two ticks to ensure we are fully synced before we open gossip or validate the current layer
 	err := s.gossipSyncForOneFullLayer(currentSyncLayer)
 	if err != nil {
