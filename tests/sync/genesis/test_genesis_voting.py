@@ -47,6 +47,8 @@ def test_unsync_while_genesis(init_session, setup_bootstrap, start_poet, add_cur
     # Create a new node in cluster
     unsynced_cl = new_client_in_namespace(testconfig['namespace'], setup_bootstrap, cspec, 1)
 
+    print(f"unsynced_cl: {unsynced_cl}\n")
+
     # Sleep until layers_to_wait layer, default is 4
     print(f"sleeping for {layer_duration * layers_to_wait} seconds\n")
     time.sleep(layer_duration * layers_to_wait)
@@ -60,6 +62,8 @@ def test_unsync_while_genesis(init_session, setup_bootstrap, start_poet, add_cur
     # Get the msg when app started on the late node
     app_started_hits = q.get_app_started_msgs(init_session, unsynced_cl.pods[0]["name"])
     assert app_started_hits, f"app did not start for new node after {layers_to_wait} layers"
+
+    time.sleep(sync_delay)
 
     # Check if the new node has finished syncing
     hits_synced = q.get_done_syncing_msgs(init_session, unsynced_cl.pods[0]["name"])

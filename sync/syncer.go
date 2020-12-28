@@ -339,7 +339,7 @@ func (s *Syncer) synchronise() {
 
 	// node is synced and blocks from current layer have already been validated
 	if curr == s.ProcessedLayer() {
-		s.Log.Info("synchronize: Node is synced")
+		s.Log.Info("Node is synced")
 		// fully-synced, make sure we listen to p2p
 		s.setGossipBufferingStatus(done)
 		return
@@ -384,7 +384,7 @@ func (s *Syncer) handleWeaklySynced() {
 
 	// fully-synced, make sure we listen to p2p
 	s.setGossipBufferingStatus(done)
-	s.With().Info("handleWeaklySynced: Node is synced")
+	s.With().Info("Node is synced")
 	return
 }
 
