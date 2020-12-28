@@ -63,6 +63,7 @@ def test_unsync_while_genesis(init_session, setup_bootstrap, start_poet, add_cur
     app_started_hits = q.get_app_started_msgs(init_session, unsynced_cl.pods[0]["name"])
     assert app_started_hits, f"app did not start for new node after {layers_to_wait} layers"
 
+    print(f"sleeping for {sync_delay} seconds\n")
     time.sleep(sync_delay)
 
     # Check if the new node has finished syncing
