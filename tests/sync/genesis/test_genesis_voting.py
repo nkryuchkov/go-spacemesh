@@ -22,16 +22,15 @@ from tests.utils import get_conf
 def test_unsync_while_genesis(init_session, setup_bootstrap, start_poet, add_curl):
     layer_duration = int(testconfig['client']['args']['layer-duration-sec'])
 
+    # As client waits for gossip before sync, additional delay is needed.
+    gossip_delay = int(testconfig["gossip_delay"])
+
     time_to_create_block_since_startup = int(testconfig['client']['args']['layers-per-epoch']) * 2 * layer_duration
-    time_before_first_block = int(testconfig["genesis_delta"]) + time_to_create_block_since_startup
+    time_before_first_block = int(testconfig["genesis_delta"]) + time_to_create_block_since_startup + gossip_delay
 
     print(f"layer_duration = {layer_duration}, layers-per-epoch = {testconfig['client']['args']['layers-per-epoch']}, "
           f"time_to_create_block_since_startup = {time_to_create_block_since_startup}, genesis_delta = "
           f"{testconfig['genesis_delta']}, time_before_first_block = {time_before_first_block}")
-
-    # Wait for gossip TODO: add comments to changes
-    sync_delay = 400
-    time_before_first_block += sync_delay
 
     layers_to_wait = 8
 
@@ -53,8 +52,6 @@ def test_unsync_while_genesis(init_session, setup_bootstrap, start_poet, add_cur
     # Create a new node in cluster
     unsynced_cl = new_client_in_namespace(testconfig['namespace'], setup_bootstrap, cspec, 1)
 
-    print(f"unsynced_cl[0]: {unsynced_cl.pods[0]['name']}\n")
-
     # Sleep until layers_to_wait layer, default is 4
     print(f"sleeping for {layer_duration * layers_to_wait} seconds\n")
     time.sleep(layer_duration * layers_to_wait)
@@ -69,8 +66,8 @@ def test_unsync_while_genesis(init_session, setup_bootstrap, start_poet, add_cur
     app_started_hits = q.get_app_started_msgs(init_session, unsynced_cl.pods[0]["name"])
     assert app_started_hits, f"app did not start for new node after {layers_to_wait} layers"
 
-    print(f"sleeping for {sync_delay} seconds\n")
-    time.sleep(sync_delay)
+    print(f"sleeping for {gossip_delay} seconds\n")
+    time.sleep(gossip_delay)
 
     # Check if the new node has finished syncing
     hits_synced = q.get_done_syncing_msgs(init_session, unsynced_cl.pods[0]["name"])
