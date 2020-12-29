@@ -878,7 +878,7 @@ loop:
 				break
 			}
 
-			s.logger.Info("askForMorePeers: addIncomingPeer: Adding new peer (incoming): %v", n)
+			s.logger.Info("askForMorePeers: getMorePeers: Adding new peer (outcoming): %v", cne.n.PublicKey())
 
 			s.outpeers[pk] = struct{}{}
 			s.outpeersMutex.Unlock()
