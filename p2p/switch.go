@@ -877,6 +877,9 @@ loop:
 				bad++
 				break
 			}
+
+			s.logger.Info("askForMorePeers: addIncomingPeer: Adding new peer (incoming): %v", n)
+
 			s.outpeers[pk] = struct{}{}
 			s.outpeersMutex.Unlock()
 
@@ -946,6 +949,8 @@ func (s *Switch) addIncomingPeer(n p2pcrypto.PublicKey) error {
 		// todo: close connection with CPOOL
 		return errors.New("reached max connections")
 	}
+
+	s.logger.Info("askForMorePeers: addIncomingPeer: Adding new peer (incoming): %v", n)
 
 	s.inpeersMutex.Lock()
 	s.inpeers[n] = struct{}{}

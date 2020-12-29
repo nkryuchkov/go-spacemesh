@@ -24,6 +24,7 @@ def test_unsync_while_genesis(init_session, setup_bootstrap, start_poet, add_cur
 
     time_to_create_block_since_startup = int(testconfig['client']['args']['layers-per-epoch']) * 2 * layer_duration
     time_before_first_block = int(testconfig["genesis_delta"]) + time_to_create_block_since_startup
+    # Wait for gossip TODO: add comments to changes
     sync_delay = 400
     time_before_first_block += sync_delay
 
@@ -47,7 +48,7 @@ def test_unsync_while_genesis(init_session, setup_bootstrap, start_poet, add_cur
     # Create a new node in cluster
     unsynced_cl = new_client_in_namespace(testconfig['namespace'], setup_bootstrap, cspec, 1)
 
-    print(f"unsynced_cl: {unsynced_cl}\n")
+    print(f"unsynced_cl[0]: {unsynced_cl.pods[0]['name']}\n")
 
     # Sleep until layers_to_wait layer, default is 4
     print(f"sleeping for {layer_duration * layers_to_wait} seconds\n")
