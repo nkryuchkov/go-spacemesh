@@ -7,6 +7,7 @@ import ntpath
 import os
 import pytz
 import re
+from collections import defaultdict
 from shutil import copyfile
 from subprocess import Popen, PIPE
 import time
@@ -149,6 +150,20 @@ def validate_blocks_per_nodes(block_map, from_layer, to_layer, layers_per_epoch,
               f"blocks_sum {blocks_sum}, to_layer {to_layer}, from_layer {from_layer}")
 
     print("\nvalidation succeeded!\n")
+
+
+def validate_beacons(log_messages):
+    epoch_messages = dict()
+
+    assert len(log_messages) != 0, f"no log messages"
+
+    for log in log_messages:
+        epoch_messages[log.epoch].add(log.beacon)
+
+    for epoch, beacons in epoch_messages.items():
+        assert len(beacons) == 1, f"all beacons in epoch {epoch} were not same, saw: {beacons}"
+
+    print(f"successfully validated beacons")
 
 
 def get_pod_id(ns, pod_name):
