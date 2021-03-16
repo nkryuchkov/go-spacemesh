@@ -153,7 +153,7 @@ func newSwarm(ctx context.Context, config config.Config, logger log.Log, datadir
 		return nil, err
 	}
 
-	logger.With().Info("local node identity", l.PublicKey())
+	logger.Info("Local node identity >> %v", l.PublicKey().String())
 	logger = logger.WithFields(log.String("p2pid", l.PublicKey().String()))
 
 	if datadir != "" {

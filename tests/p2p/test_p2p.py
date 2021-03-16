@@ -25,10 +25,11 @@ gossip_message_query_fields = {'M': 'gossip message is new', 'protocol': 'PoetPr
 
 
 def query_bootstrap_es(namespace, bootstrap_po_name):
-    hits = poll_query_message(current_index, namespace, bootstrap_po_name, {"M": "local node identity"}, expected=1)
+    hits = poll_query_message(current_index, namespace, bootstrap_po_name, {"M": "Local node identity"}, expected=1)
     for h in hits:
-        if getattr(h, 'key', None):
-            return h.key
+        match = re.search(r"Local node identity >> (?P<bootstrap_key>\w+)", h.M)
+        if match:
+            return match.group('bootstrap_key')
     return None
 
 # ==============================================================================
