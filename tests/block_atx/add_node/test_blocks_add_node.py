@@ -3,7 +3,7 @@ from pytest_testconfig import config as testconfig
 from tests import queries as q
 from tests.setup_utils import add_multi_clients
 from tests.setup_network import setup_network
-from tests.utils import validate_blocks_per_nodes, get_pod_id, get_conf
+from tests.utils import validate_blocks_per_nodes, get_pod_id, get_conf, validate_beacons
 
 
 # epoch i:
@@ -25,7 +25,7 @@ from tests.utils import validate_blocks_per_nodes, get_pod_id, get_conf
 #
 # epoch i+6
 # validate total miner generated Tavg/x+1 (floored) in i+5
-def test_add_node_validate_atx(init_session, setup_network):
+def test_add_node_validate_atx2(init_session, setup_network):
     curr_epoch = 0
     epochs_to_sleep = 2
     layer_duration = int(testconfig['client']['args']['layer-duration-sec'])
@@ -50,7 +50,7 @@ def test_add_node_validate_atx(init_session, setup_network):
     # wait for next epoch
     last_layer = layers_per_epoch * (curr_epoch + 1)
     print(f"wait until next epoch to layer {last_layer}")
-    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners+1)
+    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners + 1)
 
     # check if new client published ATX in epoch i+2
     new_pod_id = get_pod_id(init_session, new_pod_name)
@@ -70,7 +70,7 @@ def test_add_node_validate_atx(init_session, setup_network):
     first_layer = epochs_to_sleep * layers_per_epoch
 
     atx_epoch_2 = q.query_atx_per_epoch(init_session, curr_epoch - 1)
-    print(f"found {len(atx_epoch_2)} ATXs in epoch {curr_epoch-1}")
+    print(f"found {len(atx_epoch_2)} ATXs in epoch {curr_epoch - 1}")
 
     validate_blocks_per_nodes(block_map, first_layer, last_layer, layers_per_epoch, layer_avg_size, num_miners,
                               ignore_lst=ignore_lst)
@@ -79,7 +79,7 @@ def test_add_node_validate_atx(init_session, setup_network):
     prev_layer = last_layer
     last_layer = layers_per_epoch * (curr_epoch + 1)
     print(f"wait until next epoch to layer {last_layer}")
-    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners+1)
+    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners + 1)
 
     new_pod_published_atx_epoch_3 = q.node_published_atx(init_session, new_pod_id, curr_epoch)
 
@@ -91,7 +91,7 @@ def test_add_node_validate_atx(init_session, setup_network):
     print(f"-------- validating blocks per nodes up to layer {last_layer} --------")
 
     atx_epoch_3 = q.query_atx_per_epoch(init_session, curr_epoch - 1)
-    print(f"found {len(atx_epoch_3)} ATXs in epoch {curr_epoch-1}")
+    print(f"found {len(atx_epoch_3)} ATXs in epoch {curr_epoch - 1}")
 
     # As new client was started in the epoch i+2, it may or may not publish an ATX in that epoch.
     # The amount of miners depends on this condition.
@@ -102,7 +102,7 @@ def test_add_node_validate_atx(init_session, setup_network):
     print("-------- validating all nodes ATX creation in last epoch --------")
     atx_hits = q.query_atx_per_epoch(init_session, curr_epoch - 1)
 
-    print(f"found {len(atx_hits)} ATXs in epoch {curr_epoch-1}")
+    print(f"found {len(atx_hits)} ATXs in epoch {curr_epoch - 1}")
 
     # Sometimes, the new client doesn't create an ATX in the next epochs.
     expected_miners_epoch_3 = num_miners + 1 if new_pod_published_atx_epoch_3 else num_miners
@@ -113,7 +113,7 @@ def test_add_node_validate_atx(init_session, setup_network):
 
     last_layer = layers_per_epoch * (curr_epoch + 2)
     print(f"wait 2 epochs for layer {last_layer}")
-    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners+1)
+    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners + 1)
 
     new_pod_published_atx_epoch_4 = q.node_published_atx(init_session, new_pod_id, curr_epoch)
 
@@ -127,8 +127,65 @@ def test_add_node_validate_atx(init_session, setup_network):
     prev_layer = last_layer - layers_per_epoch
 
     atx_epoch_4 = q.query_atx_per_epoch(init_session, curr_epoch - 2)
-    print(f"found {len(atx_epoch_4)} ATXs in epoch {curr_epoch-2}")
+    print(f"found {len(atx_epoch_4)} ATXs in epoch {curr_epoch - 2}")
 
     num_miners_epoch_6 = num_miners + 1 if new_pod_published_atx_epoch_4 else num_miners
     validate_blocks_per_nodes(block_map, prev_layer, last_layer, layers_per_epoch, layer_avg_size, num_miners_epoch_6)
 
+
+def test_add_node_validate_atx(init_session, setup_network):
+    print(f"tortoise beacon system test started")
+
+    curr_epoch = 0
+    epochs_to_sleep = 2
+    layer_duration = int(testconfig['client']['args']['layer-duration-sec'])
+    layers_per_epoch = int(testconfig['client']['args']['layers-per-epoch'])
+    layer_avg_size = int(testconfig['client']['args']['layer-average-size'])
+    num_miners = int(testconfig['client']['replicas']) + 1  # add 1 for bs node
+
+    print(
+        f"\nlayer duration={layer_duration}, layers per epoch={layers_per_epoch}, layer avg size={layer_avg_size}")
+    # wait for 2 epochs
+    last_layer = epochs_to_sleep * layers_per_epoch
+    print(f"wait until second epoch to layer {last_layer}")
+    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners)
+
+    # ========================== epoch i+2 ==========================
+    curr_epoch += epochs_to_sleep
+    print("\n\n-------- current epoch", curr_epoch, "--------")
+    print("adding a new miner")
+    bs_info = setup_network.bootstrap.pods[0]
+    cspec = get_conf(bs_info, testconfig['client'], testconfig['genesis_delta'])
+    new_pod_name = add_multi_clients(testconfig, init_session, cspec, 1)[0]
+
+    # wait for next epoch
+    last_layer = layers_per_epoch * (curr_epoch + 1)
+    print(f"wait until next epoch to layer {last_layer}")
+    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners + 1)
+
+    # ========================== epoch i+3 ==========================
+    curr_epoch += 1
+    print("\n\n-------- current epoch", curr_epoch, "--------")
+
+    # wait an epoch
+    last_layer = layers_per_epoch * (curr_epoch + 1)
+    print(f"wait until next epoch to layer {last_layer}")
+    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners + 1)
+
+    # ========================== epoch i+4 ==========================
+    curr_epoch += 1
+    print("\n\n-------- current epoch", curr_epoch, "--------")
+
+    last_layer = layers_per_epoch * (curr_epoch + 2)
+    print(f"wait 2 epochs for layer {last_layer}")
+    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners + 1)
+
+    # ========================== epoch i+6 ==========================
+    curr_epoch += 2
+    print("\n\n-------- current epoch", curr_epoch, "--------")
+
+    print(f"-------- validating tortoise beacon --------")
+    beacon_messages = q.get_beacon_msgs(init_session, init_session)
+
+    validate_beacons(beacon_messages)
+    print("-------- tortoise beacon validation succeed --------")

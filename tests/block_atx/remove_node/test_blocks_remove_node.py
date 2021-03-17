@@ -35,163 +35,110 @@ from tests.utils import validate_blocks_per_nodes, get_pod_id, validate_beacons,
 # hence:
 # validate total miner generated Tavg/x (floored) in i+5
 def test_remove_node_validate_atx(init_session, setup_mul_network):
-    # curr_epoch = 0
-    # epochs_to_sleep = 2
-    # layer_duration = int(testconfig['client']['args']['layer-duration-sec'])
-    # layers_per_epoch = int(testconfig['client']['args']['layers-per-epoch'])
-    # layer_avg_size = int(testconfig['client']['args']['layer-average-size'])
-    #
-    # # in conf yml file second client deployment (clientv2) will show after the
-    # # first (client) in setup_mul_network.clients hence 1
-    # new_deployment_info = setup_mul_network.clients[1]
-    # print(f"\nlayer duration={layer_duration}, layers per epoch={layers_per_epoch}, layer avg size={layer_avg_size}")
-    #
-    # # add 1 for bs node and another 1 for the single dep client
-    # num_miners = int(testconfig['client']['replicas']) + 2
-    #
-    # last_layer = epochs_to_sleep * layers_per_epoch
-    # print(f"-------- wait until epoch number {epochs_to_sleep} layer {last_layer} --------")
-    # _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners)
-    #
-    # # ========================== epoch i+2 ==========================
-    # curr_epoch += epochs_to_sleep
-    # print(f"\n\n-------- current epoch {curr_epoch} --------")
-    #
-    # tts = 45
-    # print(f"sleeping for {tts} in order to let all nodes enough time to publish ATXs")
-    # time.sleep(tts)
-    #
-    # print("remove deployment with single miner")
-    # single_pod_dep_id = new_deployment_info.deployment_name
-    # _ = delete_deployment(single_pod_dep_id, init_session)
-    #
-    # print(f"-------- validating blocks per nodes up to layer {last_layer} --------")
-    # block_map, _ = q.get_blocks_per_node_and_layer(init_session)
-    # validate_blocks_per_nodes(block_map, 0, last_layer, layers_per_epoch, layer_avg_size, num_miners)
-    #
-    # print("-------- validating all nodes ATX creation in last epoch --------")
-    # atx_hits = q.query_atx_per_epoch(init_session, curr_epoch)
-    # assert len(atx_hits) == num_miners, f"atx hits = {len(atx_hits)}, number of miners = {num_miners}"
-    # print("-------- validation succeed --------")
-    #
-    # # wait for next epoch
-    # prev_layer = last_layer
-    # last_layer = layers_per_epoch * (curr_epoch + 1)
-    # print(f"-------- wait until next epoch to layer {last_layer} --------")
-    # _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners-1)
-    #
-    # # ========================== epoch i+3 ==========================
-    # curr_epoch += 1
-    # print(f"\n\n-------- current epoch {curr_epoch} --------")
-    # print(f"-------- validating blocks per nodes up to layer {last_layer} --------")
-    # block_map, _ = q.get_blocks_per_node_and_layer(init_session)
-    #
-    # single_pod_name = new_deployment_info.pods[0]["name"]
-    # deleted_pods_lst = [get_pod_id(init_session, single_pod_name)]
-    # # assert that each node has created layer_avg/number_of_nodes
-    # validate_blocks_per_nodes(block_map, prev_layer, last_layer, layers_per_epoch, layer_avg_size, num_miners,
-    #                           ignore_lst=deleted_pods_lst)
-    #
-    # # wait an epoch
-    # prev_layer = last_layer
-    # last_layer = layers_per_epoch * (curr_epoch + 1)
-    # print(f"-------- wait until next epoch to layer {last_layer} --------")
-    # _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners-1)
-    #
-    # # ========================== epoch i+4 ==========================
-    # curr_epoch += 1
-    # print(f"\n\n-------- current epoch {curr_epoch} --------")
-    # print(f"-------- validating blocks per nodes up to layer {last_layer} --------")
-    # block_map, _ = q.get_blocks_per_node_and_layer(init_session)
-    #
-    # # assert that each node has created layer_avg/number_of_nodes
-    # validate_blocks_per_nodes(block_map, prev_layer, last_layer, layers_per_epoch, layer_avg_size, num_miners,
-    #                           ignore_lst=deleted_pods_lst)
-    #
-    # # wait an epoch
-    # prev_layer = last_layer
-    # last_layer = layers_per_epoch * (curr_epoch + 1)
-    # print(f"wait until next epoch to layer {last_layer}")
-    # _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners-1)
-    #
-    # # ========================== epoch i+5 ==========================
-    # curr_epoch += 1
-    # print(f"\n\n-------- current epoch {curr_epoch} --------")
-    # print(f"-------- validating blocks per nodes up to layer {last_layer} --------")
-    # block_map, _ = q.get_blocks_per_node_and_layer(init_session)
-    #
-    # # assert that each node has created layer_avg/number_of_nodes
-    # validate_blocks_per_nodes(block_map, prev_layer, last_layer, layers_per_epoch, layer_avg_size, num_miners -1,
-    #                           ignore_lst=deleted_pods_lst)
-    #
-    # # wait an epoch
-    # prev_layer = last_layer
-    # last_layer = layers_per_epoch * (curr_epoch + 1)
-    # print(f"wait until next epoch to layer {last_layer}")
-    # _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners-1)
-    #
-    # # ========================== epoch i+6 ==========================
-    # curr_epoch += 1
-    # print(f"\n\n-------- current epoch {curr_epoch} --------")
-    # print(f"-------- validating blocks per nodes up to layer {last_layer} --------")
-    # block_map, _ = q.get_blocks_per_node_and_layer(init_session)
-    #
-    # # remove the removed node from nodes count
-    # num_miners -= 1
-    # # assert that each node has created layer_avg/number_of_nodes
-    # validate_blocks_per_nodes(block_map, prev_layer, last_layer, layers_per_epoch, layer_avg_size, num_miners,
-    #                           ignore_lst=deleted_pods_lst)
-
     curr_epoch = 0
     epochs_to_sleep = 2
     layer_duration = int(testconfig['client']['args']['layer-duration-sec'])
     layers_per_epoch = int(testconfig['client']['args']['layers-per-epoch'])
     layer_avg_size = int(testconfig['client']['args']['layer-average-size'])
-    num_miners = int(testconfig['client']['replicas']) + 1  # add 1 for bs node
 
+    # in conf yml file second client deployment (clientv2) will show after the
+    # first (client) in setup_mul_network.clients hence 1
+    new_deployment_info = setup_mul_network.clients[1]
     print(f"\nlayer duration={layer_duration}, layers per epoch={layers_per_epoch}, layer avg size={layer_avg_size}")
-    # wait for 2 epochs
+
+    # add 1 for bs node and another 1 for the single dep client
+    num_miners = int(testconfig['client']['replicas']) + 2
+
     last_layer = epochs_to_sleep * layers_per_epoch
-    print(f"wait until second epoch to layer {last_layer}")
+    print(f"-------- wait until epoch number {epochs_to_sleep} layer {last_layer} --------")
     _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners)
 
     # ========================== epoch i+2 ==========================
     curr_epoch += epochs_to_sleep
-    print("\n\n-------- current epoch", curr_epoch, "--------")
-    print("adding a new miner")
-    bs_info = setup_network.bootstrap.pods[0]
-    cspec = get_conf(bs_info, testconfig['client'], testconfig['genesis_delta'])
-    new_pod_name = add_multi_clients(testconfig, init_session, cspec, 1)[0]
+    print(f"\n\n-------- current epoch {curr_epoch} --------")
+
+    tts = 45
+    print(f"sleeping for {tts} in order to let all nodes enough time to publish ATXs")
+    time.sleep(tts)
+
+    print("remove deployment with single miner")
+    single_pod_dep_id = new_deployment_info.deployment_name
+    _ = delete_deployment(single_pod_dep_id, init_session)
+
+    print(f"-------- validating blocks per nodes up to layer {last_layer} --------")
+    block_map, _ = q.get_blocks_per_node_and_layer(init_session)
+    validate_blocks_per_nodes(block_map, 0, last_layer, layers_per_epoch, layer_avg_size, num_miners)
+
+    print("-------- validating all nodes ATX creation in last epoch --------")
+    atx_hits = q.query_atx_per_epoch(init_session, curr_epoch)
+    assert len(atx_hits) == num_miners, f"atx hits = {len(atx_hits)}, number of miners = {num_miners}"
+    print("-------- validation succeed --------")
 
     # wait for next epoch
+    prev_layer = last_layer
     last_layer = layers_per_epoch * (curr_epoch + 1)
-    print(f"wait until next epoch to layer {last_layer}")
-    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners+1)
+    print(f"-------- wait until next epoch to layer {last_layer} --------")
+    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners - 1)
 
     # ========================== epoch i+3 ==========================
     curr_epoch += 1
-    print("\n\n-------- current epoch", curr_epoch, "--------")
+    print(f"\n\n-------- current epoch {curr_epoch} --------")
+    print(f"-------- validating blocks per nodes up to layer {last_layer} --------")
+    block_map, _ = q.get_blocks_per_node_and_layer(init_session)
+
+    single_pod_name = new_deployment_info.pods[0]["name"]
+    deleted_pods_lst = [get_pod_id(init_session, single_pod_name)]
+    # assert that each node has created layer_avg/number_of_nodes
+    validate_blocks_per_nodes(block_map, prev_layer, last_layer, layers_per_epoch, layer_avg_size, num_miners,
+                              ignore_lst=deleted_pods_lst)
 
     # wait an epoch
+    prev_layer = last_layer
     last_layer = layers_per_epoch * (curr_epoch + 1)
-    print(f"wait until next epoch to layer {last_layer}")
-    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners+1)
+    print(f"-------- wait until next epoch to layer {last_layer} --------")
+    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners - 1)
 
     # ========================== epoch i+4 ==========================
     curr_epoch += 1
-    print("\n\n-------- current epoch", curr_epoch, "--------")
+    print(f"\n\n-------- current epoch {curr_epoch} --------")
+    print(f"-------- validating blocks per nodes up to layer {last_layer} --------")
+    block_map, _ = q.get_blocks_per_node_and_layer(init_session)
 
-    last_layer = layers_per_epoch * (curr_epoch + 2)
-    print(f"wait 2 epochs for layer {last_layer}")
-    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners+1)
+    # assert that each node has created layer_avg/number_of_nodes
+    validate_blocks_per_nodes(block_map, prev_layer, last_layer, layers_per_epoch, layer_avg_size, num_miners,
+                              ignore_lst=deleted_pods_lst)
+
+    # wait an epoch
+    prev_layer = last_layer
+    last_layer = layers_per_epoch * (curr_epoch + 1)
+    print(f"wait until next epoch to layer {last_layer}")
+    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners - 1)
+
+    # ========================== epoch i+5 ==========================
+    curr_epoch += 1
+    print(f"\n\n-------- current epoch {curr_epoch} --------")
+    print(f"-------- validating blocks per nodes up to layer {last_layer} --------")
+    block_map, _ = q.get_blocks_per_node_and_layer(init_session)
+
+    # assert that each node has created layer_avg/number_of_nodes
+    validate_blocks_per_nodes(block_map, prev_layer, last_layer, layers_per_epoch, layer_avg_size, num_miners - 1,
+                              ignore_lst=deleted_pods_lst)
+
+    # wait an epoch
+    prev_layer = last_layer
+    last_layer = layers_per_epoch * (curr_epoch + 1)
+    print(f"wait until next epoch to layer {last_layer}")
+    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners - 1)
 
     # ========================== epoch i+6 ==========================
-    curr_epoch += 2
-    print("\n\n-------- current epoch", curr_epoch, "--------")
+    curr_epoch += 1
+    print(f"\n\n-------- current epoch {curr_epoch} --------")
+    print(f"-------- validating blocks per nodes up to layer {last_layer} --------")
+    block_map, _ = q.get_blocks_per_node_and_layer(init_session)
 
-    print(f"-------- validating tortoise beacon --------")
-    beacon_messages = q.get_beacon_msgs(init_session, init_session)
-
-    validate_beacons(beacon_messages)
-    print("-------- tortoise beacon validation succeed --------")
+    # remove the removed node from nodes count
+    num_miners -= 1
+    # assert that each node has created layer_avg/number_of_nodes
+    validate_blocks_per_nodes(block_map, prev_layer, last_layer, layers_per_epoch, layer_avg_size, num_miners,
+                              ignore_lst=deleted_pods_lst)
 
