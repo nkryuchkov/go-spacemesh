@@ -279,7 +279,7 @@ func (tb *TortoiseBeacon) handleEpoch(epoch types.EpochID) {
 
 	tb.beaconsMu.Lock()
 
-	if _, ok := tb.beacons[epoch]; ok {
+	if _, ok := tb.beaconsReady[epoch]; ok {
 		tb.beaconsMu.Unlock()
 
 		// Already handling this epoch
