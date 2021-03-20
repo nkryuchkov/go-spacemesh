@@ -471,6 +471,7 @@ func (app *SpacemeshApp) initServices(nodeID types.NodeID,
 	poetClient activation.PoetProvingServiceClient,
 	vrfSigner *BLS381.BlsSigner,
 	layersPerEpoch uint16, clock TickProvider) error {
+	log.Info("initServices [1]")
 
 	app.nodeID = nodeID
 
@@ -485,10 +486,14 @@ func (app *SpacemeshApp) initServices(nodeID types.NodeID,
 
 	postClient.SetLogger(app.addLogger(PostLogger, lg))
 
+	log.Info("initServices [2]")
+
 	db, err := database.NewLDBDatabase(filepath.Join(dbStorepath, "state"), 0, 0, app.addLogger(StateDbLogger, lg))
 	if err != nil {
 		return err
 	}
+
+	log.Info("initServices [3]")
 	app.closers = append(app.closers, db)
 
 	coinToss := weakCoinStub{}
@@ -497,30 +502,35 @@ func (app *SpacemeshApp) initServices(nodeID types.NodeID,
 	if err != nil {
 		return err
 	}
+	log.Info("initServices [4]")
 	app.closers = append(app.closers, atxdbstore)
 
 	tBeaconDBStore, err := database.NewLDBDatabase(filepath.Join(dbStorepath, "tbeacon"), 0, 0, app.addLogger(TBeaconDbStoreLogger, lg))
 	if err != nil {
 		return err
 	}
+	log.Info("initServices [5]")
 	app.closers = append(app.closers, tBeaconDBStore)
 
 	poetDbStore, err := database.NewLDBDatabase(filepath.Join(dbStorepath, "poet"), 0, 0, app.addLogger(PoetDbStoreLogger, lg))
 	if err != nil {
 		return err
 	}
+	log.Info("initServices [6]")
 	app.closers = append(app.closers, poetDbStore)
 
 	iddbstore, err := database.NewLDBDatabase(filepath.Join(dbStorepath, "ids"), 0, 0, app.addLogger(StateDbLogger, lg))
 	if err != nil {
 		return err
 	}
+	log.Info("initServices [7]")
 	app.closers = append(app.closers, iddbstore)
 
 	store, err := database.NewLDBDatabase(filepath.Join(dbStorepath, "store"), 0, 0, app.addLogger(StoreLogger, lg))
 	if err != nil {
 		return err
 	}
+	log.Info("initServices [8]")
 	app.closers = append(app.closers, store)
 
 	idStore := activation.NewIdentityStore(iddbstore)
@@ -530,6 +540,7 @@ func (app *SpacemeshApp) initServices(nodeID types.NodeID,
 	if err != nil {
 		return err
 	}
+	log.Info("initServices [9]")
 
 	app.txPool = state.NewTxMemPool()
 	meshAndPoolProjector := pendingtxs.NewMeshAndPoolProjector(mdb, app.txPool)
@@ -538,6 +549,7 @@ func (app *SpacemeshApp) initServices(nodeID types.NodeID,
 	if err != nil {
 		return err
 	}
+	log.Info("initServices [10]")
 	app.closers = append(app.closers, appliedTxs)
 	processor := state.NewTransactionProcessor(db, appliedTxs, meshAndPoolProjector, app.txPool, lg.WithName("state"))
 
@@ -545,6 +557,7 @@ func (app *SpacemeshApp) initServices(nodeID types.NodeID,
 	if goldenATXID == *types.EmptyATXID {
 		app.log.Panic("invalid Golden ATX ID")
 	}
+	log.Info("initServices [11]")
 
 	atxdb := activation.NewDB(atxdbstore, idStore, mdb, layersPerEpoch, goldenATXID, validator, app.addLogger(AtxDbLogger, lg))
 	tBeaconDB := tortoisebeacon.NewDB(tBeaconDBStore, app.addLogger(TBeaconDbLogger, lg))
@@ -555,7 +568,7 @@ func (app *SpacemeshApp) initServices(nodeID types.NodeID,
 	// TODO(nkryuchkov): pass correct args
 
 	log.Info("Test 178ee4d1d822ca85a6b5fbe81515da427934c45f")
-
+	log.Info("initServices [12]")
 	log.Info("TortoiseBeacon starting")
 
 	tBeacon := tortoisebeacon.New(tBeaconConf, swarm, atxdb, tBeaconDB, weakCoin, clock.Subscribe(), app.addLogger(TBeaconLogger, lg))
@@ -563,6 +576,7 @@ func (app *SpacemeshApp) initServices(nodeID types.NodeID,
 		app.log.Panic("Failed to start tortoise beacon: %v", err)
 	}
 
+	log.Info("initServices [13]")
 	log.Info("TortoiseBeacon started")
 
 	var msh *mesh.Mesh
@@ -1054,11 +1068,13 @@ func (app *SpacemeshApp) Start(cmd *cobra.Command, args []string) {
 	clock := timesync.NewClock(timesync.RealClock{}, ld, gTime, log.NewDefault("clock"))
 
 	log.Info("initializing P2P services")
+	log.Info("initServices [-1]")
 	swarm, err := p2p.New(cmdp.Ctx, app.Config.P2P, app.addLogger(P2PLogger, lg), dbStorepath)
 	if err != nil {
 		log.Panic("error starting p2p services. err: %v", err)
 	}
 
+	log.Info("initServices [0]")
 	err = app.initServices(nodeID, swarm, dbStorepath, app.edSgn, false, nil, uint32(app.Config.LayerAvgSize), postClient, poetClient, vrfSigner, uint16(app.Config.LayersPerEpoch), clock)
 	if err != nil {
 		log.With().Error("cannot start services", log.Err(err))
