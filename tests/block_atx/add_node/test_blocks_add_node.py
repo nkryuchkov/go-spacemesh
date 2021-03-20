@@ -187,7 +187,5 @@ def test_add_node_validate_atx(init_session, setup_network):
     print(f"-------- validating tortoise beacon --------")
     beacon_messages = q.get_beacon_msgs(init_session, init_session)
 
-    print(f"all beacon messages: {beacon_messages}")
-
     validate_beacons(beacon_messages)
     print("-------- tortoise beacon validation succeed --------")
