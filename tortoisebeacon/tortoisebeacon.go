@@ -303,6 +303,8 @@ func (tb *TortoiseBeacon) handleEpoch(epoch types.EpochID) {
 	beacon := calculateBeacon(tb.votesFor)
 	tb.timelyProposalsMu.Unlock()
 
+	log.Info("TortoiseBeacon calculated for epoch %v: %v", uint64(epoch), beacon.String())
+
 	tb.Log.With().Info("Calculated beacon",
 		log.Uint64("epoch", uint64(epoch)),
 		log.String("beacon", beacon.String()))
