@@ -2,6 +2,8 @@ package tortoisebeacon
 
 import (
 	"errors"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -671,11 +673,21 @@ func (tb *TortoiseBeacon) lastPossibleRound() uint64 {
 func calculateBeacon(m map[EpochRoundPair]map[types.Hash32]struct{}) types.Hash32 {
 	hasher := sha256.New()
 
+	allHashes := make([]types.Hash32, 0)
+
 	for _, hashList := range m {
 		for hash := range hashList {
-			if _, err := hasher.Write(hash.Bytes()); err != nil {
-				panic("should not happen") // an error is never returned: https://golang.org/pkg/hash/#Hash
-			}
+			allHashes = append(allHashes, hash)
+		}
+	}
+
+	sort.Slice(allHashes, func(i, j int) bool {
+		return strings.Compare(allHashes[i].String(), allHashes[j].String()) == -1
+	})
+
+	for _, hash := range allHashes {
+		if _, err := hasher.Write(hash.Bytes()); err != nil {
+			panic("should not happen") // an error is never returned: https://golang.org/pkg/hash/#Hash
 		}
 	}
 
