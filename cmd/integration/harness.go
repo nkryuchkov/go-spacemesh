@@ -62,7 +62,7 @@ func NewHarness(cfg *ServerConfig, args []string) (*Harness, error) {
 	}
 
 	// Spawn a new mockNode server process.
-	log.Info("harness passing the following arguments: %v", args)
+	log.Info("harness passing the following arguments to executable %v: %v", server.cfg.exe, args)
 	log.Info("Full node server start listening on: %v", server.cfg.rpcListen)
 	if err := server.start(args); err != nil {
 		log.Error("Full node ERROR listening on: %v", server.cfg.rpcListen)
