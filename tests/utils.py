@@ -153,13 +153,19 @@ def validate_blocks_per_nodes(block_map, from_layer, to_layer, layers_per_epoch,
 
 
 def validate_beacons(log_messages):
-    epoch_messages = defaultdict(set)
+    epoch_messages = defaultdict(dict)
 
     assert len(log_messages) > 0, f"no log messages"
 
     for log in log_messages:
         print(f"handling message {log}")
-        epoch_messages[log.epoch].add(log.beacon)
+        if log.epoch not in epoch_messages:
+            epoch_messages[log.epoch] = dict()
+
+        if log.beacon not in epoch_messages[log.epoch]:
+            epoch_messages[log.epoch][log.beacon] = 0
+
+        epoch_messages[log.epoch][log.beacon] += 1
 
     for epoch, beacons in epoch_messages.items():
         assert len(beacons) == 1, f"all beacons in epoch {epoch} were not same, saw: {beacons}"
