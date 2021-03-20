@@ -155,7 +155,7 @@ def validate_blocks_per_nodes(block_map, from_layer, to_layer, layers_per_epoch,
 def validate_beacons(log_messages):
     epoch_messages = dict()
 
-    assert len(log_messages) != 0, f"no log messages"
+    assert len(log_messages) > 0, f"no log messages"
 
     for log in log_messages:
         epoch_messages[log.epoch].add(log.beacon)
