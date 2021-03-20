@@ -3,6 +3,11 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+
 	"github.com/spacemeshos/go-spacemesh/api"
 	"github.com/spacemeshos/go-spacemesh/api/grpcserver"
 	cmdp "github.com/spacemeshos/go-spacemesh/cmd"
@@ -10,10 +15,6 @@ import (
 	"github.com/spacemeshos/go-spacemesh/metrics"
 	"github.com/spacemeshos/go-spacemesh/p2p"
 	"github.com/spf13/cobra"
-	"io"
-	"net/http"
-	_ "net/http/pprof"
-	"os"
 )
 
 // Cmd is the p2p cmd
@@ -62,7 +63,7 @@ func (app *P2PApp) Start(cmd *cobra.Command, args []string) {
 	log.JSONLog(true)
 	log.DebugMode(true)
 
-	log.Info("Initializing P2P services")
+	log.Info("Initializing P2P services3")
 
 	logger := log.NewDefault("P2P_Test")
 

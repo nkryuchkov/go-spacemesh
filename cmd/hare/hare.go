@@ -3,6 +3,12 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+	"os"
+	"runtime"
+	"runtime/pprof"
+	"time"
+
 	cmdp "github.com/spacemeshos/go-spacemesh/cmd"
 	"github.com/spacemeshos/go-spacemesh/common/types"
 	"github.com/spacemeshos/go-spacemesh/common/util"
@@ -15,14 +21,9 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"net/http"
-	"os"
-	"runtime"
-	"runtime/pprof"
-	"time"
-)
 
-import _ "net/http/pprof"
+	_ "net/http/pprof"
+)
 
 // Cmd the command of the hare app
 var Cmd = &cobra.Command{
@@ -142,7 +143,7 @@ func (app *HareApp) Start(cmd *cobra.Command, args []string) {
 		}()
 	}
 	types.SetLayersPerEpoch(int32(app.Config.LayersPerEpoch))
-	log.Info("Initializing P2P services")
+	log.Info("Initializing P2P services1")
 	swarm, err := p2p.New(cmdp.Ctx, app.Config.P2P, log.NewDefault("p2p_haretest"), app.Config.DataDir())
 	app.p2p = swarm
 	if err != nil {

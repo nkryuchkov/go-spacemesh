@@ -1067,7 +1067,7 @@ func (app *SpacemeshApp) Start(cmd *cobra.Command, args []string) {
 	ld := time.Duration(app.Config.LayerDurationSec) * time.Second
 	clock := timesync.NewClock(timesync.RealClock{}, ld, gTime, log.NewDefault("clock"))
 
-	log.Info("initializing P2P services")
+	log.Info("initializing P2P services2")
 	log.Info("initServices [-1]")
 	swarm, err := p2p.New(cmdp.Ctx, app.Config.P2P, app.addLogger(P2PLogger, lg), dbStorepath)
 	if err != nil {
