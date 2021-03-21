@@ -685,6 +685,13 @@ func calculateBeacon(m map[EpochRoundPair]map[types.Hash32]struct{}) types.Hash3
 		return strings.Compare(allHashes[i].String(), allHashes[j].String()) == -1
 	})
 
+	stringHashes := make([]string, 0)
+	for _, hash := range allHashes {
+		stringHashes = append(stringHashes, hash.String())
+	}
+
+	log.Info("going to calculate beacon from hashes %v", strings.Join(stringHashes, " "))
+
 	for _, hash := range allHashes {
 		if _, err := hasher.Write(hash.Bytes()); err != nil {
 			panic("should not happen") // an error is never returned: https://golang.org/pkg/hash/#Hash
