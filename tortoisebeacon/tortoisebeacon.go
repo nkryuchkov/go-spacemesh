@@ -701,6 +701,8 @@ func calculateBeacon(m map[EpochRoundPair]map[types.Hash32]struct{}) types.Hash3
 	var res types.Hash32
 	hasher.Sum(res[:0])
 
+	log.Info("got beacon %v from hashes %v", res.String(), strings.Join(stringHashes, " "))
+
 	return res
 }
 
