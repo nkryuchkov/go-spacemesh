@@ -19,7 +19,7 @@ func DefaultConfig() Config {
 		VotesNumber:    50, // TODO(nkryuchkov): change
 		BeaconDuration: 30, // TODO(nkryuchkov): change
 		RoundsNumber:   6,
-		WakeupDelta:    30,
+		WakeupDelta:    60,
 		Theta:          1, // TODO(nkryuchkov): change
 		HDist:          20,
 		TAve:           1, // TODO(nkryuchkov): change
