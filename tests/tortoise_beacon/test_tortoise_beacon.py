@@ -7,6 +7,8 @@ from tests.utils import validate_beacons, get_pod_id, get_conf
 
 
 def test_tortoise_beacon(init_session, setup_network):
+    print(f"tortoise beacon system test started")
+
     curr_epoch = 0
     epochs_to_sleep = 2
     layer_duration = int(testconfig['client']['args']['layer-duration-sec'])
@@ -14,7 +16,8 @@ def test_tortoise_beacon(init_session, setup_network):
     layer_avg_size = int(testconfig['client']['args']['layer-average-size'])
     num_miners = int(testconfig['client']['replicas']) + 1  # add 1 for bs node
 
-    print(f"\nlayer duration={layer_duration}, layers per epoch={layers_per_epoch}, layer avg size={layer_avg_size}")
+    print(
+        f"\nlayer duration={layer_duration}, layers per epoch={layers_per_epoch}, layer avg size={layer_avg_size}")
     # wait for 2 epochs
     last_layer = epochs_to_sleep * layers_per_epoch
     print(f"wait until second epoch to layer {last_layer}")
@@ -31,7 +34,7 @@ def test_tortoise_beacon(init_session, setup_network):
     # wait for next epoch
     last_layer = layers_per_epoch * (curr_epoch + 1)
     print(f"wait until next epoch to layer {last_layer}")
-    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners+1)
+    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners + 1)
 
     # ========================== epoch i+3 ==========================
     curr_epoch += 1
@@ -40,7 +43,7 @@ def test_tortoise_beacon(init_session, setup_network):
     # wait an epoch
     last_layer = layers_per_epoch * (curr_epoch + 1)
     print(f"wait until next epoch to layer {last_layer}")
-    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners+1)
+    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners + 1)
 
     # ========================== epoch i+4 ==========================
     curr_epoch += 1
@@ -48,7 +51,7 @@ def test_tortoise_beacon(init_session, setup_network):
 
     last_layer = layers_per_epoch * (curr_epoch + 2)
     print(f"wait 2 epochs for layer {last_layer}")
-    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners+1)
+    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners + 1)
 
     # ========================== epoch i+6 ==========================
     curr_epoch += 2
