@@ -6,7 +6,7 @@ type Config struct { // TODO(nkryuchkov): use unused fields
 	VotesNumber    int    `mapstructure:"tortoise-beacon-votes-number"`  // max allowed amount of votes in voting message
 	BeaconDuration int    `mapstructure:"tortoise-beacon-duration"`      // Messages of the beacon are very large, we need to spread the sending of these messages, so that clients with slow connection can also participate. The solution is to run the protocol for a long enough period of time so that messages can be sent throughout this time
 	RoundsNumber   uint64 `mapstructure:"tortoise-beacon-rounds-number"` // number of rounds
-	WakeupDelta    int    `mapstructure:"tortoise-beacon-wakeup-delta"`  // the wakeup delta after tick
+	RoundDuration  int    `mapstructure:"tortoise-beacon-wakeup-delta"`  // the wakeup delta after tick
 	Theta          int    `mapstructure:"tortoise-beacon-theta"`
 	HDist          int    `mapstructure:"tortoise-beacon-hdist"`
 	TAve           int    `mapstructure:"tortoise-beacon-t-ave"`
@@ -19,7 +19,7 @@ func DefaultConfig() Config {
 		VotesNumber:    50, // TODO(nkryuchkov): change
 		BeaconDuration: 30, // TODO(nkryuchkov): change
 		RoundsNumber:   2,
-		WakeupDelta:    120,
+		RoundDuration:  60,
 		Theta:          1, // TODO(nkryuchkov): change
 		HDist:          20,
 		TAve:           1, // TODO(nkryuchkov): change
@@ -33,7 +33,7 @@ func TestConfig() Config {
 		VotesNumber:    50, // TODO(nkryuchkov): change
 		BeaconDuration: 30, // TODO(nkryuchkov): change
 		RoundsNumber:   2,
-		WakeupDelta:    1,
+		RoundDuration:  1,
 		Theta:          1,
 		HDist:          1,
 		TAve:           1,

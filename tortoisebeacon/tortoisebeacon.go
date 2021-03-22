@@ -107,7 +107,7 @@ func New(
 		weakCoin:             weakCoin,
 		weakCoinGenerator:    wcg,
 		layerTicker:          layerTicker,
-		networkDelta:         time.Duration(conf.WakeupDelta) * time.Second,
+		networkDelta:         time.Duration(conf.RoundDuration) * time.Second,
 		currentRounds:        make(map[types.EpochID]uint64),
 		timelyProposalsList:  make(map[types.EpochID][][]types.ATXID),
 		delayedProposalsList: make(map[types.EpochID][][]types.ATXID),
