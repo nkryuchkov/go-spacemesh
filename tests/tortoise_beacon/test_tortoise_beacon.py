@@ -23,39 +23,39 @@ def test_tortoise_beacon(init_session, setup_network):
     print(f"wait until second epoch to layer {last_layer}")
     _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners)
 
-    # ========================== epoch i+2 ==========================
-    curr_epoch += epochs_to_sleep
-    print("\n\n-------- current epoch", curr_epoch, "--------")
-    print("adding a new miner")
-    bs_info = setup_network.bootstrap.pods[0]
-    cspec = get_conf(bs_info, testconfig['client'], testconfig['genesis_delta'])
-    new_pod_name = add_multi_clients(testconfig, init_session, cspec, 1)[0]
-
-    # wait for next epoch
-    last_layer = layers_per_epoch * (curr_epoch + 1)
-    print(f"wait until next epoch to layer {last_layer}")
-    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners + 1)
-
-    # ========================== epoch i+3 ==========================
-    curr_epoch += 1
-    print("\n\n-------- current epoch", curr_epoch, "--------")
-
-    # wait an epoch
-    last_layer = layers_per_epoch * (curr_epoch + 1)
-    print(f"wait until next epoch to layer {last_layer}")
-    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners + 1)
-
-    # ========================== epoch i+4 ==========================
-    curr_epoch += 1
-    print("\n\n-------- current epoch", curr_epoch, "--------")
-
-    last_layer = layers_per_epoch * (curr_epoch + 2)
-    print(f"wait 2 epochs for layer {last_layer}")
-    _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners + 1)
-
-    # ========================== epoch i+6 ==========================
-    curr_epoch += 2
-    print("\n\n-------- current epoch", curr_epoch, "--------")
+    # # ========================== epoch i+2 ==========================
+    # curr_epoch += epochs_to_sleep
+    # print("\n\n-------- current epoch", curr_epoch, "--------")
+    # print("adding a new miner")
+    # bs_info = setup_network.bootstrap.pods[0]
+    # cspec = get_conf(bs_info, testconfig['client'], testconfig['genesis_delta'])
+    # new_pod_name = add_multi_clients(testconfig, init_session, cspec, 1)[0]
+    #
+    # # wait for next epoch
+    # last_layer = layers_per_epoch * (curr_epoch + 1)
+    # print(f"wait until next epoch to layer {last_layer}")
+    # _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners + 1)
+    #
+    # # ========================== epoch i+3 ==========================
+    # curr_epoch += 1
+    # print("\n\n-------- current epoch", curr_epoch, "--------")
+    #
+    # # wait an epoch
+    # last_layer = layers_per_epoch * (curr_epoch + 1)
+    # print(f"wait until next epoch to layer {last_layer}")
+    # _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners + 1)
+    #
+    # # ========================== epoch i+4 ==========================
+    # curr_epoch += 1
+    # print("\n\n-------- current epoch", curr_epoch, "--------")
+    #
+    # last_layer = layers_per_epoch * (curr_epoch + 2)
+    # print(f"wait 2 epochs for layer {last_layer}")
+    # _ = q.wait_for_latest_layer(init_session, last_layer, layers_per_epoch, num_miners + 1)
+    #
+    # # ========================== epoch i+6 ==========================
+    # curr_epoch += 2
+    # print("\n\n-------- current epoch", curr_epoch, "--------")
 
     print(f"-------- validating tortoise beacon --------")
     beacon_messages = q.get_beacon_msgs(init_session, init_session)
