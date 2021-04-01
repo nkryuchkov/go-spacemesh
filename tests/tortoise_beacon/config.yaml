@@ -4,7 +4,7 @@ config_map_name: conf
 
 script_on_exit: '' # Uncomment this to save logs './k8s/log-client-pods.sh'
 
-total_pods: 51
+total_pods: 31
 genesis_delta: 75
 single_pod_ready_time_out: 60
 deployment_ready_time_out: 180
@@ -23,24 +23,24 @@ bootstrap:
       cpu: '2'
   args:
     randcon: '8'
-    hare-committee-size: '50'
+    hare-committee-size: '30'
     hare-max-adversaries: '24'
     hare-round-duration-sec: '7'
     hare-exp-leaders: '10'
     layer-duration-sec: '40'
-    layer-average-size: '50'
+    layer-average-size: '30'
     hare-wakeup-delta: '7'
     layers-per-epoch: '12'
     coinbase: '0x4321'
     eligibility-confidence-param: '5'
     eligibility-epoch-offset: '0'
-    genesis-active-size: '50'
+    genesis-active-size: '30'
     executable-path: '/bin/go-spacemesh'
   deployment_type: deployment
 client:
   image: 'spacemeshos/go-spacemesh:develop'
   command: '/bin/go-harness'
-  replicas: 49
+  replicas: 29
   resources:
     requests:
       memory: '2048M'
@@ -50,15 +50,15 @@ client:
       cpu: '2'
   args:
     randcon: '8'
-    hare-committee-size: '50'
+    hare-committee-size: '30'
     hare-max-adversaries: '24'
     hare-round-duration-sec: '7'
     hare-exp-leaders: '10'
     layer-duration-sec: '40'
-    layer-average-size: '50'
+    layer-average-size: '30'
     hare-wakeup-delta: '7'
     tortoise-beacon-atx-threshold: '50'
-    tortoise-beacon-rounds-number: '6'
+    tortoise-beacon-rounds-number: '12'
     tortoise-beacon-wakeup-delta: '30'
     tortoise-beacon-theta: '1'
     tortoise-beacon-hdist: '20'
@@ -67,7 +67,7 @@ client:
     coinbase: '0x1234'
     eligibility-confidence-param: '5'
     eligibility-epoch-offset: '0'
-    genesis-active-size: '50'
+    genesis-active-size: '30'
     executable-path: '/bin/go-spacemesh'
   deployment_type: deployment
 elastic:
