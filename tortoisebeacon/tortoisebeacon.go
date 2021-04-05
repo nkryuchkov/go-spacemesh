@@ -350,7 +350,7 @@ func (tb *TortoiseBeacon) handleProposalMessage(m ProposalMessage) error {
 	mt := tb.classifyMessage(m, epoch)
 	switch mt {
 	case TimelyMessage:
-		tb.Log.With().Debug("Received timely ProposalMessage",
+		tb.Log.With().Info("Received timely ProposalMessage",
 			log.Uint64("epoch", uint64(m.Epoch())),
 			log.String("message", m.String()))
 
@@ -361,7 +361,7 @@ func (tb *TortoiseBeacon) handleProposalMessage(m ProposalMessage) error {
 		return nil
 
 	case DelayedMessage:
-		tb.Log.With().Debug("Received delayed ProposalMessage",
+		tb.Log.With().Info("Received delayed ProposalMessage",
 			log.Uint64("epoch", uint64(m.Epoch())),
 			log.String("message", m.String()))
 
@@ -372,13 +372,17 @@ func (tb *TortoiseBeacon) handleProposalMessage(m ProposalMessage) error {
 		return nil
 
 	case LateMessage:
-		tb.Log.With().Debug("Received late ProposalMessage",
+		tb.Log.With().Info("Received late ProposalMessage",
 			log.Uint64("epoch", uint64(m.Epoch())),
 			log.String("message", m.String()))
 
 		return nil
 
 	default:
+		tb.Log.With().Info("Received ProposalMessage of unknown type",
+			log.Uint64("epoch", uint64(m.Epoch())),
+			log.Int("message", int(mt)))
+
 		return ErrUnknownMessageType
 	}
 }
@@ -398,7 +402,7 @@ func (tb *TortoiseBeacon) handleVotingMessage(m VotingMessage) error {
 	mt := tb.classifyMessage(m, epoch)
 	switch mt {
 	case TimelyMessage:
-		tb.Log.With().Debug("Received timely VotingMessage",
+		tb.Log.With().Info("Received timely VotingMessage",
 			log.Uint64("epoch", uint64(m.Epoch())),
 			log.Uint64("round", m.Round()),
 			log.String("message", m.String()))
@@ -422,7 +426,7 @@ func (tb *TortoiseBeacon) handleVotingMessage(m VotingMessage) error {
 		return nil
 
 	case DelayedMessage:
-		tb.Log.With().Debug("Received delayed VotingMessage",
+		tb.Log.With().Info("Received delayed VotingMessage",
 			log.Uint64("epoch", uint64(m.Epoch())),
 			log.Uint64("round", m.Round()),
 			log.String("message", m.String()))
@@ -430,7 +434,7 @@ func (tb *TortoiseBeacon) handleVotingMessage(m VotingMessage) error {
 		return nil
 
 	case LateMessage:
-		tb.Log.With().Debug("Received late VotingMessage",
+		tb.Log.With().Info("Received late VotingMessage",
 			log.Uint64("epoch", uint64(m.Epoch())),
 			log.Uint64("round", m.Round()),
 			log.String("message", m.String()))
@@ -438,6 +442,11 @@ func (tb *TortoiseBeacon) handleVotingMessage(m VotingMessage) error {
 		return nil
 
 	default:
+		tb.Log.With().Info("Received VotingMessage of unknown type",
+			log.Uint64("epoch", uint64(m.Epoch())),
+			log.Uint64("round", m.Round()),
+			log.Int("message", int(mt)))
+
 		return ErrUnknownMessageType
 	}
 }
