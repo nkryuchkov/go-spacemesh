@@ -18,6 +18,7 @@ const (
 
 type message interface {
 	Epoch() types.EpochID
+	String() string
 }
 
 // ProposalMessage is a message type which is used when sending proposals.
