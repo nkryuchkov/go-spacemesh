@@ -58,7 +58,7 @@ client:
     layer-average-size: '30'
     hare-wakeup-delta: '7'
     tortoise-beacon-atx-threshold: '50'
-    tortoise-beacon-rounds-number: '12'
+    tortoise-beacon-rounds-number: '6'
     tortoise-beacon-wakeup-delta: '30'
     tortoise-beacon-theta: '1'
     tortoise-beacon-hdist: '20'
