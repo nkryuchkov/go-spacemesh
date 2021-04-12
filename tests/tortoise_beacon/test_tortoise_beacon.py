@@ -3,7 +3,7 @@ from pytest_testconfig import config as testconfig
 from tests import queries as q
 from tests.setup_utils import add_multi_clients
 from tests.setup_network import setup_network
-from tests.utils import validate_beacons_in_epoch, get_pod_id, get_conf
+from tests.utils import validate_beacons, validate_beacons_by_epoch, get_pod_id, get_conf
 
 
 def test_tortoise_beacon(init_session, setup_network):
@@ -28,9 +28,9 @@ def test_tortoise_beacon(init_session, setup_network):
     print("\n\n-------- current epoch", curr_epoch, "--------")
 
     print(f"-------- validating tortoise beacon epoch {curr_epoch} --------")
-    beacon_messages = q.get_beacon_msgs(init_session, init_session)
+    beacon_messages = q.get_beacon_msgs_by_epoch(init_session, init_session, curr_epoch)
 
-    validate_beacons_in_epoch(beacon_messages, curr_epoch)
+    validate_beacons_by_epoch(beacon_messages, curr_epoch)
     print(f"-------- tortoise beacon validation epoch {curr_epoch} succeed --------")
 
     print("adding a new miner")
@@ -48,9 +48,9 @@ def test_tortoise_beacon(init_session, setup_network):
     print("\n\n-------- current epoch", curr_epoch, "--------")
 
     print(f"-------- validating tortoise beacon epoch {curr_epoch} --------")
-    beacon_messages = q.get_beacon_msgs(init_session, init_session)
+    beacon_messages = q.get_beacon_msgs_by_epoch(init_session, init_session, curr_epoch)
 
-    validate_beacons_in_epoch(beacon_messages, curr_epoch)
+    validate_beacons_by_epoch(beacon_messages, curr_epoch)
     print(f"-------- tortoise beacon validation epoch {curr_epoch} succeed --------")
 
     # wait an epoch
@@ -63,9 +63,9 @@ def test_tortoise_beacon(init_session, setup_network):
     print("\n\n-------- current epoch", curr_epoch, "--------")
 
     print(f"-------- validating tortoise beacon epoch {curr_epoch} --------")
-    beacon_messages = q.get_beacon_msgs(init_session, init_session)
+    beacon_messages = q.get_beacon_msgs_by_epoch(init_session, init_session, curr_epoch)
 
-    validate_beacons_in_epoch(beacon_messages, curr_epoch)
+    validate_beacons_by_epoch(beacon_messages, curr_epoch)
     print(f"-------- tortoise beacon validation epoch {curr_epoch} succeed --------")
 
     last_layer = layers_per_epoch * (curr_epoch + 2)
@@ -77,7 +77,13 @@ def test_tortoise_beacon(init_session, setup_network):
     print("\n\n-------- current epoch", curr_epoch, "--------")
 
     print(f"-------- validating tortoise beacon epoch {curr_epoch} --------")
+    beacon_messages = q.get_beacon_msgs_by_epoch(init_session, init_session, curr_epoch)
+
+    validate_beacons_by_epoch(beacon_messages, curr_epoch)
+    print(f"-------- tortoise beacon validation epoch {curr_epoch} succeed --------")
+
+    print(f"-------- validating tortoise beacon final results --------")
     beacon_messages = q.get_beacon_msgs(init_session, init_session)
 
-    validate_beacons_in_epoch(beacon_messages, curr_epoch)
-    print(f"-------- tortoise beacon validation epoch {curr_epoch} succeed --------")
+    validate_beacons(beacon_messages)
+    print(f"-------- tortoise beacon final results validation succeed --------")

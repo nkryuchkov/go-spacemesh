@@ -172,7 +172,7 @@ def validate_beacons(log_messages):
         print(f"all beacons in epoch {epoch} were same, saw: {beacons}")
 
 
-def validate_beacons_in_epoch(log_messages, epoch_id):
+def validate_beacons_by_epoch(log_messages, epoch_id):
     epoch_messages = defaultdict()
 
     assert len(log_messages) > 0, f"no log messages"
