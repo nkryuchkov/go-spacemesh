@@ -73,6 +73,11 @@ def get_beacon_msgs(namespace, pod_name):
     return get_all_msg_containing(namespace, pod_name, beacon_msg)
 
 
+def get_beacon_msgs_for_epoch(namespace, pod_name, epoch_id):
+    fields = {'M': 'Calculated beacon', 'epoch_id': str(epoch_id)}
+    return query_message(current_index, namespace, pod_name, fields, False)
+
+
 def get_all_msg_containing(namespace, pod_name, msg_data, find_fails=False, from_ts=None, to_ts=None, is_print=True):
     """
     Queries for all logs with msg_data in their content {"M": msg_data}

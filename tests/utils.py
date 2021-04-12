@@ -171,7 +171,30 @@ def validate_beacons(log_messages):
         assert len(beacons) == 1, f"all beacons in epoch {epoch} were not same, saw: {beacons}"
         print(f"all beacons in epoch {epoch} were same, saw: {beacons}")
 
-    print(f"successfully validated beacons")
+
+def validate_beacons_in_epoch(log_messages, epoch_id):
+    epoch_messages = defaultdict()
+
+    assert len(log_messages) > 0, f"no log messages"
+
+    for log in log_messages:
+        if log.epoch_id not in epoch_messages:
+            epoch_messages[log.epoch_id] = dict()
+
+        if log.beacon not in epoch_messages[log.epoch_id]:
+            epoch_messages[log.epoch_id][log.beacon] = 0
+
+        epoch_messages[log.epoch_id][log.beacon] += 1
+
+    assert len(epoch_messages.items()) == 1, f"saw multiple epochs in log messages: {len(epoch_messages)}, wanted 1"
+
+    for message_epoch_id, beacons in epoch_messages.items():
+        assert epoch_id == message_epoch_id, f"wrong epoch_id in log messages, got {message_epoch_id}, want {epoch_id}"
+
+        assert len(beacons) == 1, f"all beacons in epoch_id {epoch_id} were not same, saw: {beacons}"
+        print(f"all beacons in epoch_id {epoch_id} were same, saw: {beacons}")
+
+    print(f"successfully validated beacons epoch {epoch_id}")
 
 
 def get_pod_id(ns, pod_name):
