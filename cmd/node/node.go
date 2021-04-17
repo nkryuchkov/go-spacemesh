@@ -54,6 +54,7 @@ import (
 	"github.com/spacemeshos/go-spacemesh/tortoise"
 	"github.com/spacemeshos/go-spacemesh/tortoisebeacon"
 	"github.com/spacemeshos/go-spacemesh/turbohare"
+	"github.com/spacemeshos/go-spacemesh/weakcoin"
 )
 
 const edKeyFileName = "key.bin"
@@ -549,15 +550,14 @@ func (app *SpacemeshApp) initServices(nodeID types.NodeID,
 	}
 
 	atxdb := activation.NewDB(atxdbstore, idStore, mdb, layersPerEpoch, goldenATXID, validator, app.addLogger(AtxDbLogger, lg))
-	//tBeaconDB := tortoisebeacon.NewDB(tBeaconDBStore, app.addLogger(TBeaconDbLogger, lg))
+	tBeaconDB := tortoisebeacon.NewDB(tBeaconDBStore, app.addLogger(TBeaconDbLogger, lg))
 
-	beaconProvider := &blocks.EpochBeaconProvider{}
-	//wc := weakcoin.NewWeakCoin(weakcoin.DefaultPrefix, weakcoin.DefaultThreshold, swarm, app.addLogger(WeakCoinLogger, lg))
-	//
-	//tBeacon := tortoisebeacon.New(app.Config.TortoiseBeacon, swarm, atxdb, tBeaconDB, wc, clock.Subscribe(), app.addLogger(TBeaconLogger, lg))
-	//if err := tBeacon.Start(); err != nil {
-	//	app.log.Panic("Failed to start tortoise beacon: %v", err)
-	//}
+	wc := weakcoin.NewWeakCoin(weakcoin.DefaultPrefix, weakcoin.DefaultThreshold, swarm, app.addLogger(WeakCoinLogger, lg))
+
+	tBeacon := tortoisebeacon.New(app.Config.TortoiseBeacon, swarm, atxdb, tBeaconDB, wc, clock.Subscribe(), app.addLogger(TBeaconLogger, lg))
+	if err := tBeacon.Start(); err != nil {
+		app.log.Panic("Failed to start tortoise beacon: %v", err)
+	}
 
 	var msh *mesh.Mesh
 	var trtl *tortoise.ThreadSafeVerifyingTortoise
@@ -579,8 +579,7 @@ func (app *SpacemeshApp) initServices(nodeID types.NodeID,
 		app.setupGenesis(processor, msh)
 	}
 
-	eValidator := blocks.NewBlockEligibilityValidator(layerSize, uint32(app.Config.GenesisActiveSet), layersPerEpoch, atxdb, beaconProvider, BLS381.Verify2, msh, app.addLogger(BlkEligibilityLogger, lg))
-	//eValidator := blocks.NewBlockEligibilityValidator(layerSize, uint32(app.Config.GenesisActiveSet), layersPerEpoch, atxdb, tBeacon, BLS381.Verify2, msh, app.addLogger(BlkEligibilityLogger, lg))
+	eValidator := blocks.NewBlockEligibilityValidator(layerSize, uint32(app.Config.GenesisActiveSet), layersPerEpoch, atxdb, tBeacon, BLS381.Verify2, msh, app.addLogger(BlkEligibilityLogger, lg))
 
 	syncConf := sync.Configuration{Concurrency: 4,
 		LayerSize:       int(layerSize),
@@ -605,8 +604,7 @@ func (app *SpacemeshApp) initServices(nodeID types.NodeID,
 	}
 
 	syncer := sync.NewSync(swarm, msh, app.txPool, atxdb, eValidator, poetDb, syncConf, clock, app.addLogger(SyncLogger, lg))
-	blockOracle := blocks.NewMinerBlockOracle(layerSize, uint32(app.Config.GenesisActiveSet), layersPerEpoch, atxdb, beaconProvider, vrfSigner, nodeID, syncer.ListenToGossip, app.addLogger(BlockOracle, lg))
-	//blockOracle := blocks.NewMinerBlockOracle(layerSize, uint32(app.Config.GenesisActiveSet), layersPerEpoch, atxdb, tBeacon, vrfSigner, nodeID, syncer.ListenToGossip, app.addLogger(BlockOracle, lg))
+	blockOracle := blocks.NewMinerBlockOracle(layerSize, uint32(app.Config.GenesisActiveSet), layersPerEpoch, atxdb, tBeacon, vrfSigner, nodeID, syncer.ListenToGossip, app.addLogger(BlockOracle, lg))
 
 	// TODO: we should probably decouple the apptest and the node (and duplicate as necessary) (#1926)
 	var hOracle hare.Rolacle
@@ -659,9 +657,9 @@ func (app *SpacemeshApp) initServices(nodeID types.NodeID,
 	gossipListener.AddListener(state.IncomingTxProtocol, priorityq.Low, processor.HandleTxData)
 	gossipListener.AddListener(activation.AtxProtocol, priorityq.Low, atxdb.HandleGossipAtx)
 	gossipListener.AddListener(blocks.NewBlockProtocol, priorityq.High, blockListener.HandleBlock)
-	//gossipListener.AddListener(tortoisebeacon.TBProposalProtocol, priorityq.Low, tBeacon.HandleSerializedProposalMessage)
-	//gossipListener.AddListener(tortoisebeacon.TBVotingProtocol, priorityq.Low, tBeacon.HandleSerializedVotingMessage)
-	//gossipListener.AddListener(weakcoin.GossipProtocol, priorityq.Low, wc.HandleSerializedMessage)
+	gossipListener.AddListener(tortoisebeacon.TBProposalProtocol, priorityq.Low, tBeacon.HandleSerializedProposalMessage)
+	gossipListener.AddListener(tortoisebeacon.TBVotingProtocol, priorityq.Low, tBeacon.HandleSerializedVotingMessage)
+	gossipListener.AddListener(weakcoin.GossipProtocol, priorityq.Low, wc.HandleSerializedMessage)
 
 	app.blockProducer = blockProducer
 	app.blockListener = blockListener
@@ -677,7 +675,7 @@ func (app *SpacemeshApp) initServices(nodeID types.NodeID,
 	app.oracle = blockOracle
 	app.txProcessor = processor
 	app.atxDb = atxdb
-	//app.tBeacon = tBeacon
+	app.tBeacon = tBeacon
 
 	return nil
 }
