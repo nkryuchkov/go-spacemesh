@@ -1,6 +1,7 @@
 package tortoisebeacon
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"sync"
@@ -214,6 +215,10 @@ func (tb *TortoiseBeacon) GetBeacon(epochNumber types.EpochID) []byte {
 	if err := tb.Wait(epochNumber); err != nil {
 		return nil
 	}
+
+	ret := make([]byte, 32)
+	binary.LittleEndian.PutUint64(ret, uint64(epochNumber))
+	return ret
 
 	v, err := tb.Get(epochNumber)
 	if err != nil {
