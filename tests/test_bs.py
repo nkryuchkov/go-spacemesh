@@ -99,7 +99,7 @@ def test_mining(init_session, setup_network):
 
     layer_reached = queries.wait_for_latest_layer(testconfig["namespace"], last_layer, layers_per_epoch, total_pods)
 
-    tts = 80
+    tts = 100
     sleep_print_backwards(tts)
 
     analyse.analyze_mining(testconfig['namespace'], layer_reached, layers_per_epoch, layer_avg_size, total_pods)
