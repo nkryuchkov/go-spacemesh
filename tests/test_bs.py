@@ -92,7 +92,7 @@ def test_mining(init_session, setup_network):
     layer_avg_size = testconfig['client']['args']['layer-average-size']
     layers_per_epoch = int(testconfig['client']['args']['layers-per-epoch'])
     # check only third epoch
-    epochs = 5
+    epochs = 2
     last_layer = epochs * layers_per_epoch
 
     total_pods = len(setup_network.clients.pods) + len(setup_network.bootstrap.pods)
