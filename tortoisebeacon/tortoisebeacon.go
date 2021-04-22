@@ -219,6 +219,8 @@ func (tb *TortoiseBeacon) GetBeacon(epochNumber types.EpochID) []byte {
 		return nil
 	}
 
+	tb.Log.Info("GetBeacon returns mock beacon")
+
 	ret := make([]byte, 32)
 	binary.LittleEndian.PutUint64(ret, uint64(epochNumber))
 	return ret
