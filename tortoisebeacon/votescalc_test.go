@@ -8,7 +8,7 @@ import (
 	"github.com/spacemeshos/go-spacemesh/common/types"
 	"github.com/spacemeshos/go-spacemesh/log"
 	"github.com/spacemeshos/go-spacemesh/p2p/p2pcrypto"
-	"github.com/spacemeshos/go-spacemesh/weakcoin"
+	"github.com/spacemeshos/go-spacemesh/tortoisebeacon/weakcoin"
 )
 
 func TestTortoiseBeacon_calcVotesFromProposals(t *testing.T) {
@@ -373,8 +373,8 @@ func TestTortoiseBeacon_calcOwnFirstRoundVotes(t *testing.T) {
 
 			tb := TortoiseBeacon{
 				config: Config{
-					Theta: threshold,
-					TAve:  1,
+					Theta: 1,
+					TAve:  threshold,
 				},
 				Log:             log.NewDefault("TortoiseBeacon"),
 				weakCoin:        tc.weakCoin,
@@ -839,8 +839,8 @@ func TestTortoiseBeacon_calcOwnCurrentRoundVotes(t *testing.T) {
 
 			tb := TortoiseBeacon{
 				config: Config{
-					Theta: threshold,
-					TAve:  1,
+					Theta: 1,
+					TAve:  threshold,
 				},
 				Log:             log.NewDefault("TortoiseBeacon"),
 				ownVotes:        map[epochRoundPair]votesSetPair{},

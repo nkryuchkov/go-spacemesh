@@ -177,18 +177,18 @@ func AddCommands(cmd *cobra.Command) {
 
 	/**======================== Tortoise Beacon Flags ========================== **/
 
-	cmd.PersistentFlags().IntVar(&config.TortoiseBeacon.ATXThreshold, "tortoise-beacon-atx-threshold",
-		config.TortoiseBeacon.ATXThreshold, "ATX difficulty threshold in proposal message")
+	cmd.PersistentFlags().IntVar(&config.TortoiseBeacon.Kappa, "tortoise-beacon-kappa",
+		config.TortoiseBeacon.Kappa, "Security parameter (for calculating ATX threshold)")
+	cmd.PersistentFlags().Float64Var(&config.TortoiseBeacon.Q, "tortoise-beacon-q",
+		config.TortoiseBeacon.Q, "Ratio of dishonest spacetime (for calculating ATX threshold)")
 	cmd.PersistentFlags().Uint64Var(&config.TortoiseBeacon.RoundsNumber, "tortoise-beacon-rounds-number",
 		config.TortoiseBeacon.RoundsNumber, "Amount of rounds in every epoch")
-	cmd.PersistentFlags().IntVar(&config.TortoiseBeacon.WakeupDelta, "tortoise-beacon-wakeup-delta",
-		config.TortoiseBeacon.WakeupDelta, "Network delta. It defines round duration")
-	cmd.PersistentFlags().IntVar(&config.TortoiseBeacon.Theta, "tortoise-beacon-theta",
-		config.TortoiseBeacon.Theta, "TODO") // TODO(nkryuchkov): fill
-	cmd.PersistentFlags().IntVar(&config.TortoiseBeacon.HDist, "tortoise-beacon-hdist",
-		config.TortoiseBeacon.HDist, "TODO") // TODO(nkryuchkov): fill
+	cmd.PersistentFlags().IntVar(&config.TortoiseBeacon.RoundDuration, "tortoise-beacon-round-duration-sec",
+		config.TortoiseBeacon.RoundDuration, "Round duration in seconds")
+	cmd.PersistentFlags().Float64Var(&config.TortoiseBeacon.Theta, "tortoise-beacon-theta",
+		config.TortoiseBeacon.Theta, "Ratio of votes for reaching consensus")
 	cmd.PersistentFlags().IntVar(&config.TortoiseBeacon.TAve, "tortoise-beacon-t-ave",
-		config.TortoiseBeacon.TAve, "TODO") // TODO(nkryuchkov): fill
+		config.TortoiseBeacon.TAve, "Average number of messages")
 
 	/**======================== PoST Flags ========================== **/
 
