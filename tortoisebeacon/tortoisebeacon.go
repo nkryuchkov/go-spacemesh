@@ -1,9 +1,11 @@
 package tortoisebeacon
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -210,6 +212,14 @@ func (tb *TortoiseBeacon) Get(epochID types.EpochID) (types.Hash32, error) {
 
 // GetBeacon waits until a Tortoise Beacon value is ready for a certain epoch and returns it as []byte.
 func (tb *TortoiseBeacon) GetBeacon(epochNumber types.EpochID) []byte {
+	tb.Log.Info("GetBeacon returns random mock beacon")
+
+	rand.Seed(time.Now().UnixNano())
+
+	ret := make([]byte, 32)
+	binary.LittleEndian.PutUint64(ret, rand.Uint64())
+	return ret
+
 	if err := tb.Wait(epochNumber); err != nil {
 		tb.Log.With().Error("Failed to wait for tortoise beacon value calculation",
 			log.Uint64("epoch_id", uint64(epochNumber)),
