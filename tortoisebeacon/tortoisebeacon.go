@@ -217,7 +217,8 @@ func (tb *TortoiseBeacon) GetBeacon(epochNumber types.EpochID) []byte {
 	rand.Seed(time.Now().UnixNano())
 
 	ret := make([]byte, 32)
-	binary.LittleEndian.PutUint64(ret, rand.Uint64())
+	//binary.LittleEndian.PutUint64(ret, rand.Uint64())
+	binary.LittleEndian.PutUint64(ret, uint64(epochNumber))
 	return ret
 
 	if err := tb.Wait(epochNumber); err != nil {
