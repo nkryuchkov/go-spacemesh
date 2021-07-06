@@ -2,6 +2,7 @@ package grpcserver
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -36,7 +37,6 @@ import (
 	pb "github.com/spacemeshos/api/release/go/spacemesh/v1"
 	"github.com/spacemeshos/go-spacemesh/api/config"
 	"github.com/spacemeshos/go-spacemesh/p2p/node"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
@@ -62,14 +62,14 @@ const (
 	layerFirst            = 0
 	layerVerified         = 8
 	layerLatest           = 10
-	layerCurrent          = 12
 	rewardAmount          = 5551234
 	receiptIndex          = 42
 )
 
 var (
-	networkMock = NetworkMock{}
-	mempoolMock = MempoolMock{
+	layerCurrent = 12
+	networkMock  = NetworkMock{}
+	mempoolMock  = MempoolMock{
 		poolByAddress: make(map[types.Address]types.TransactionID),
 		poolByTxid:    make(map[types.TransactionID]*types.Transaction),
 	}
@@ -117,7 +117,6 @@ func init() {
 
 func NewNIPSTWithChallenge(challenge *types.Hash32, poetRef []byte) *types.NIPST {
 	return &types.NIPST{
-		Space:          commitmentSize,
 		NipstChallenge: challenge,
 		PostProof: &types.PostProof{
 			Challenge:    poetRef,
@@ -138,7 +137,7 @@ func (s *NetworkMock) SubscribePeerEvents() (conn, disc chan p2pcrypto.PublicKey
 	return make(chan p2pcrypto.PublicKey), make(chan p2pcrypto.PublicKey)
 }
 
-func (s *NetworkMock) Broadcast(_ string, payload []byte) error {
+func (s *NetworkMock) Broadcast(_ context.Context, _ string, payload []byte) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	if s.broadCastErr {
@@ -237,6 +236,20 @@ func (t *TxAPIMock) GetRewards(types.Address) (rewards []types.Reward, err error
 			Layer:               layerFirst,
 			TotalReward:         rewardAmount,
 			LayerRewardEstimate: rewardAmount,
+			SmesherID:           nodeID,
+			Coinbase:            addr1,
+		},
+	}, nil
+}
+
+func (t *TxAPIMock) GetRewardsBySmesherID(types.NodeID) (rewards []types.Reward, err error) {
+	return []types.Reward{
+		{
+			Layer:               layerFirst,
+			TotalReward:         rewardAmount,
+			LayerRewardEstimate: rewardAmount,
+			SmesherID:           nodeID,
+			Coinbase:            addr1,
 		},
 	}, nil
 }
@@ -276,7 +289,7 @@ func (t *TxAPIMock) GetLayer(tid types.LayerID) (*types.Layer, error) {
 	return types.NewExistingLayer(tid, blocks), nil
 }
 
-func (t *TxAPIMock) GetATXs([]types.ATXID) (map[types.ATXID]*types.ActivationTx, []types.ATXID) {
+func (t *TxAPIMock) GetATXs(context.Context, []types.ATXID) (map[types.ATXID]*types.ActivationTx, []types.ATXID) {
 	atxs := map[types.ATXID]*types.ActivationTx{
 		globalAtx.ID():  globalAtx,
 		globalAtx2.ID(): globalAtx2,
@@ -342,6 +355,7 @@ func newAtx(challenge types.NIPSTChallenge, nipst *types.NIPST, coinbase types.A
 			ActivationTxHeader: &types.ActivationTxHeader{
 				NIPSTChallenge: challenge,
 				Coinbase:       coinbase,
+				Space:          commitmentSize,
 			},
 			Nipst: nipst,
 		},
@@ -357,7 +371,7 @@ func (*MiningAPIMock) MiningStats() (int, uint64, string, string) {
 	return miningStatus, remainingBytes, addr1.String(), dataDir
 }
 
-func (*MiningAPIMock) StartPost(types.Address, string, uint64) error {
+func (*MiningAPIMock) StartPost(context.Context, types.Address, string, uint64) error {
 	return nil
 }
 
@@ -374,7 +388,7 @@ type GenesisTimeMock struct {
 }
 
 func (t GenesisTimeMock) GetCurrentLayer() types.LayerID {
-	return layerCurrent
+	return types.LayerID(layerCurrent)
 }
 
 func (t GenesisTimeMock) GetGenesisTime() time.Time {
@@ -388,15 +402,15 @@ func marshalProto(t *testing.T, msg proto.Message) string {
 	return buf.String()
 }
 
-var cfg = config.DefaultConfig()
+var cfg = config.DefaultTestConfig()
 
 type SyncerMock struct {
 	startCalled bool
 	isSynced    bool
 }
 
-func (s *SyncerMock) IsSynced() bool { return s.isSynced }
-func (s *SyncerMock) Start()         { s.startCalled = true }
+func (s *SyncerMock) IsSynced(context.Context) bool { return s.isSynced }
+func (s *SyncerMock) Start(context.Context)         { s.startCalled = true }
 
 type MempoolMock struct {
 	// In the real state.TxMempool struct, there are multiple data structures and they're more complex,
@@ -430,7 +444,7 @@ func (m MempoolMock) GetTxIdsByAddress(addr types.Address) (ids []types.Transact
 }
 
 func launchServer(t *testing.T, services ...ServiceAPI) func() {
-	err := networkMock.Broadcast("", []byte{0x00})
+	err := networkMock.Broadcast(context.TODO(), "", []byte{0x00})
 	require.NoError(t, err)
 
 	grpcService := NewServerWithInterface(cfg.GrpcServerPort, "localhost")
@@ -444,6 +458,7 @@ func launchServer(t *testing.T, services ...ServiceAPI) func() {
 	// start gRPC and json servers
 	grpcService.Start()
 	jsonService.StartService(
+		context.TODO(),
 		cfg.StartDebugService,
 		cfg.StartGatewayService,
 		cfg.StartGlobalStateService,
@@ -474,8 +489,8 @@ func callEndpoint(t *testing.T, endpoint, payload string) (string, int) {
 }
 
 func TestNewServersConfig(t *testing.T) {
-	port1, err := node.GetUnboundedPort()
-	port2, err := node.GetUnboundedPort()
+	port1, err := node.GetUnboundedPort("tcp", 0)
+	port2, err := node.GetUnboundedPort("tcp", 0)
 	require.NoError(t, err, "Should be able to establish a connection on a port")
 
 	grpcService := NewServerWithInterface(port1, "localhost")
@@ -543,8 +558,22 @@ func TestNodeService(t *testing.T) {
 			require.Equal(t, build, res.BuildString.Value)
 		}},
 		{"Status", func(t *testing.T) {
+			// First do a mock checking during a genesis layer
+			// During genesis all layers should be set to current layer
+			oldCurLayer := layerCurrent
+			layerCurrent = layersPerEpoch // end of first epoch
 			req := &pb.StatusRequest{}
 			res, err := c.Status(context.Background(), req)
+			require.NoError(t, err)
+			require.Equal(t, uint64(0), res.Status.ConnectedPeers)
+			require.Equal(t, false, res.Status.IsSynced)
+			require.Equal(t, uint32(layerLatest), res.Status.SyncedLayer.Number)
+			require.Equal(t, uint32(layerCurrent), res.Status.TopLayer.Number)
+			require.Equal(t, uint32(layerLatest), res.Status.VerifiedLayer.Number)
+
+			// Now do a mock check post-genesis
+			layerCurrent = oldCurLayer
+			res, err = c.Status(context.Background(), req)
 			require.NoError(t, err)
 			require.Equal(t, uint64(0), res.Status.ConnectedPeers)
 			require.Equal(t, false, res.Status.IsSynced)
@@ -688,18 +717,91 @@ func TestGlobalStateService(t *testing.T) {
 			checkAccountDataQueryItemAccount(t, res.AccountItem[1].Datum)
 		}},
 		{"SmesherDataQuery", func(t *testing.T) {
+			res, err := c.SmesherDataQuery(context.Background(), &pb.SmesherDataQueryRequest{
+				SmesherId: &pb.SmesherId{
+					Id: nodeID.ToBytes(),
+				},
+				MaxResults: uint32(10),
+				Offset:     uint32(0),
+			})
+			require.NoError(t, err)
+			require.Equal(t, uint32(1), res.TotalResults)
+			require.Equal(t, 1, len(res.Rewards))
+			require.Equal(t, uint32(layerFirst), res.Rewards[0].Layer.Number)
+			require.Equal(t, uint64(rewardAmount), res.Rewards[0].Total.Value)
+			require.Equal(t, uint64(rewardAmount), res.Rewards[0].LayerReward.Value)
+			require.Equal(t, addr1.Bytes(), res.Rewards[0].Coinbase.Address)
+			require.Equal(t, nodeID.ToBytes(), res.Rewards[0].Smesher.Id)
+		}},
+		{"SmesherDataQueryNullArgs", func(t *testing.T) {
 			_, err := c.SmesherDataQuery(context.Background(), &pb.SmesherDataQueryRequest{})
 			require.Error(t, err)
-			statusCode := status.Code(err)
-			require.Equal(t, codes.Unimplemented, statusCode)
+			require.Contains(t, err.Error(), "`Id` must be provided")
 		}},
-		{"SmesherRewardStream", func(t *testing.T) {
-			stream, err := c.SmesherRewardStream(context.Background(), &pb.SmesherRewardStreamRequest{})
-			// We expect to be able to open the stream but for it to fail upon the first request
-			require.NoError(t, err)
-			_, err = stream.Recv()
-			statusCode := status.Code(err)
-			require.Equal(t, codes.Unimplemented, statusCode)
+		{"SmesherDataQueryNoID", func(t *testing.T) {
+			_, err := c.SmesherDataQuery(context.Background(), &pb.SmesherDataQueryRequest{
+				SmesherId:  &pb.SmesherId{},
+				MaxResults: uint32(10),
+				Offset:     uint32(0),
+			})
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "`Id.Id` must be provided")
+		}},
+		{name: "SmesherRewardStream_Basic", run: func(t *testing.T) {
+			generateRunFn := func(req *pb.SmesherRewardStreamRequest) func(*testing.T) {
+				return func(*testing.T) {
+					// Just try opening and immediately closing the stream
+					stream, err := c.SmesherRewardStream(context.Background(), req)
+					require.NoError(t, err, "unexpected error opening stream")
+
+					// Do we need this? It doesn't seem to cause any harm
+					stream.Context().Done()
+				}
+			}
+			generateRunFnError := func(msg string, req *pb.SmesherRewardStreamRequest) func(*testing.T) {
+				return func(t *testing.T) {
+					// there should be no error opening the stream
+					stream, err := c.SmesherRewardStream(context.Background(), req)
+					require.NoError(t, err, "unexpected error opening stream")
+
+					// sending a request should generate an error
+					_, err = stream.Recv()
+					require.Error(t, err, "expected an error")
+					require.Contains(t, err.Error(), msg, "received unexpected error")
+					statusCode := status.Code(err)
+					require.Equal(t, codes.InvalidArgument, statusCode, "expected InvalidArgument error")
+
+					// Do we need this? It doesn't seem to cause any harm
+					stream.Context().Done()
+				}
+			}
+			subtests := []struct {
+				name string
+				run  func(*testing.T)
+			}{
+				{
+					name: "missing ID",
+					run:  generateRunFnError("`Id` must be provided", &pb.SmesherRewardStreamRequest{}),
+				},
+				{
+					name: "empty ID",
+					run: generateRunFnError("`Id.Id` must be provided", &pb.SmesherRewardStreamRequest{
+						Id: &pb.SmesherId{},
+					}),
+				},
+
+				//These tests should be successful
+				{
+					name: "valid address",
+					run: generateRunFn(&pb.SmesherRewardStreamRequest{
+						Id: &pb.SmesherId{Id: []byte("smesher1")},
+					}),
+				},
+			}
+			//Run sub-subtests
+			for _, r := range subtests {
+				t.Run(r.name, r.run)
+			}
 		}},
 		{"AppEventStream", func(t *testing.T) {
 			stream, err := c.AppEventStream(context.Background(), &pb.AppEventStreamRequest{})
@@ -1060,7 +1162,7 @@ func TestMeshService(t *testing.T) {
 					name: "MinLayer too high",
 					run: func(t *testing.T) {
 						_, err := c.AccountMeshDataQuery(context.Background(), &pb.AccountMeshDataQueryRequest{
-							MinLayer: &pb.LayerNumber{Number: layerCurrent + 1},
+							MinLayer: &pb.LayerNumber{Number: uint32(layerCurrent + 1)},
 						})
 						require.Error(t, err, "expected an error")
 						require.Contains(t, err.Error(), "`LatestLayer` must be less than")
@@ -1516,7 +1618,7 @@ func TestTransactionServiceSubmitUnsync(t *testing.T) {
 		context.Background(),
 		&pb.SubmitTransactionRequest{Transaction: serializedTx},
 	)
-	req.Error(err)
+	req.EqualError(err, "rpc error: code = FailedPrecondition desc = Cannot submit transaction, node is not in sync yet, try again later")
 	req.Nil(res)
 
 	syncer.isSynced = true
@@ -1527,6 +1629,9 @@ func TestTransactionServiceSubmitUnsync(t *testing.T) {
 		&pb.SubmitTransactionRequest{Transaction: serializedTx},
 	)
 	req.NoError(err)
+	// TODO: randomly got an error here, should investigate. Added specific error check above, as this error should have
+	//  happened there first.
+	//  Received unexpected error: "rpc error: code = Unimplemented desc = unknown service spacemesh.v1.TransactionService"
 }
 
 func TestTransactionService(t *testing.T) {
@@ -1838,7 +1943,7 @@ func checkLayer(t *testing.T, l *pb.Layer) {
 			if bytes.Compare(a.PrevAtx.Id, globalAtx.PrevATXID.Bytes()) != 0 {
 				continue
 			}
-			if a.CommitmentSize != globalAtx.Nipst.Space {
+			if a.CommitmentSize != globalAtx.Space {
 				continue
 			}
 			// found a match
@@ -1957,6 +2062,9 @@ func TestAccountMeshDataStream_comprehensive(t *testing.T) {
 }
 
 func TestAccountDataStream_comprehensive(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	svc := NewGlobalStateService(txAPI, mempoolMock)
 	shutDown := launchServer(t, svc)
 	defer shutDown()
@@ -2150,6 +2258,9 @@ func TestGlobalStateStream_comprehensive(t *testing.T) {
 }
 
 func TestLayerStream_comprehensive(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	grpcService := NewMeshService(txAPI, mempoolMock, &genTime, layersPerEpoch, networkID, layerDurationSec, layerAvgSize, txsPerBlock)
 	shutDown := launchServer(t, grpcService)
 	defer shutDown()
@@ -2237,6 +2348,7 @@ func checkAccountDataQueryItemReward(t *testing.T, dataItem interface{}) {
 		require.Equal(t, uint64(rewardAmount), x.Reward.Total.Value)
 		require.Equal(t, uint64(rewardAmount), x.Reward.LayerReward.Value)
 		require.Equal(t, addr1.Bytes(), x.Reward.Coinbase.Address)
+		require.Equal(t, nodeID.ToBytes(), x.Reward.Smesher.Id)
 	default:
 		require.Fail(t, "inner account data item has wrong data type")
 	}
@@ -2368,6 +2480,7 @@ func checkGlobalStateDataGlobalState(t *testing.T, dataItem interface{}) {
 }
 
 func TestMultiService(t *testing.T) {
+	cfg.GrpcServerPort = 9192
 	svc1 := NewNodeService(&networkMock, txAPI, &genTime, &SyncerMock{})
 	svc2 := NewMeshService(txAPI, mempoolMock, &genTime, layersPerEpoch, networkID, layerDurationSec, layerAvgSize, txsPerBlock)
 	shutDown := launchServer(t, svc1, svc2)

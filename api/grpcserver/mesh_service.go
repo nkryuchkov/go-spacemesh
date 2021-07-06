@@ -1,13 +1,14 @@
 package grpcserver
 
 import (
+	"context"
 	"fmt"
+
 	pb "github.com/spacemeshos/api/release/go/spacemesh/v1"
 	"github.com/spacemeshos/go-spacemesh/api"
 	"github.com/spacemeshos/go-spacemesh/common/types"
 	"github.com/spacemeshos/go-spacemesh/events"
 	"github.com/spacemeshos/go-spacemesh/log"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -18,7 +19,7 @@ type MeshService struct {
 	Mempool          api.MempoolAPI
 	GenTime          api.GenesisTimeAPI
 	LayersPerEpoch   int
-	NetworkID        int8
+	NetworkID        uint32
 	LayerDurationSec int
 	LayerAvgSize     int
 	TxsPerBlock      int
@@ -32,7 +33,7 @@ func (s MeshService) RegisterService(server *Server) {
 // NewMeshService creates a new service using config data
 func NewMeshService(
 	tx api.TxAPI, mempool api.MempoolAPI, genTime api.GenesisTimeAPI,
-	layersPerEpoch int, networkID int8, layerDurationSec int,
+	layersPerEpoch int, networkID uint32, layerDurationSec int,
 	layerAvgSize int, txsPerBlock int) *MeshService {
 	return &MeshService{
 		Mesh:             tx,
@@ -121,7 +122,7 @@ func (s MeshService) getFilteredTransactions(startLayer types.LayerID, addr type
 	return
 }
 
-func (s MeshService) getFilteredActivations(startLayer types.LayerID, addr types.Address) (activations []*types.ActivationTx, err error) {
+func (s MeshService) getFilteredActivations(ctx context.Context, startLayer types.LayerID, addr types.Address) (activations []*types.ActivationTx, err error) {
 	// We have no way to look up activations by coinbase so we have no choice
 	// but to read all of them.
 	// TODO: index activations by layer (and maybe by coinbase)
@@ -141,7 +142,7 @@ func (s MeshService) getFilteredActivations(startLayer types.LayerID, addr types
 	}
 
 	// Look up full data
-	atxs, matxs := s.Mesh.GetATXs(atxids)
+	atxs, matxs := s.Mesh.GetATXs(ctx, atxids)
 	if len(matxs) != 0 {
 		log.Error("could not find activations %v", matxs)
 		return nil, status.Errorf(codes.Internal, "error retrieving activations data")
@@ -156,7 +157,7 @@ func (s MeshService) getFilteredActivations(startLayer types.LayerID, addr types
 }
 
 // AccountMeshDataQuery returns account data
-func (s MeshService) AccountMeshDataQuery(_ context.Context, in *pb.AccountMeshDataQueryRequest) (*pb.AccountMeshDataQueryResponse, error) {
+func (s MeshService) AccountMeshDataQuery(ctx context.Context, in *pb.AccountMeshDataQueryRequest) (*pb.AccountMeshDataQueryResponse, error) {
 	log.Info("GRPC MeshService.AccountMeshDataQuery")
 
 	var startLayer types.LayerID
@@ -200,7 +201,7 @@ func (s MeshService) AccountMeshDataQuery(_ context.Context, in *pb.AccountMeshD
 
 	// Gather activation data
 	if filterActivations {
-		atxs, err := s.getFilteredActivations(startLayer, addr)
+		atxs, err := s.getFilteredActivations(ctx, startLayer, addr)
 		if err != nil {
 			return nil, err
 		}
@@ -289,11 +290,11 @@ func convertActivation(a *types.ActivationTx) (*pb.Activation, error) {
 		SmesherId:      &pb.SmesherId{Id: a.NodeID.ToBytes()},
 		Coinbase:       &pb.AccountId{Address: a.Coinbase.Bytes()},
 		PrevAtx:        &pb.ActivationId{Id: a.PrevATXID.Bytes()},
-		CommitmentSize: a.Nipst.Space,
+		CommitmentSize: a.Space,
 	}, nil
 }
 
-func (s MeshService) readLayer(layer *types.Layer, layerStatus pb.Layer_LayerStatus) (*pb.Layer, error) {
+func (s MeshService) readLayer(ctx context.Context, layer *types.Layer, layerStatus pb.Layer_LayerStatus) (*pb.Layer, error) {
 	// Load all block data
 	var blocks []*pb.Block
 
@@ -305,7 +306,8 @@ func (s MeshService) readLayer(layer *types.Layer, layerStatus pb.Layer_LayerSta
 		// TODO: Do we ever expect txs to be missing here?
 		// E.g., if this node has not synced/received them yet.
 		if len(missing) != 0 {
-			log.Error("could not find transactions %v from layer %v", missing, layer.Index())
+			log.With().Error("could not find transactions from layer",
+				log.String("missing", fmt.Sprint(missing)), layer.Index())
 			return nil, status.Errorf(codes.Internal, "error retrieving tx data")
 		}
 
@@ -329,15 +331,16 @@ func (s MeshService) readLayer(layer *types.Layer, layerStatus pb.Layer_LayerSta
 	var pbActivations []*pb.Activation
 
 	// Add unique ATXIDs
-	atxs, matxs := s.Mesh.GetATXs(activations)
+	atxs, matxs := s.Mesh.GetATXs(ctx, activations)
 	if len(matxs) != 0 {
-		log.Error("could not find activations %v from layer %v", matxs, layer.Index())
+		log.With().Error("could not find activations from layer",
+			log.String("missing", fmt.Sprint(matxs)), layer.Index())
 		return nil, status.Errorf(codes.Internal, "error retrieving activations data")
 	}
 	for _, atx := range atxs {
 		pbatx, err := convertActivation(atx)
 		if err != nil {
-			log.Error("error serializing activation data: %s", err)
+			log.With().Error("error serializing activation data", log.Err(err))
 			return nil, status.Errorf(codes.Internal, "error serializing activation data")
 		}
 		pbActivations = append(pbActivations, pbatx)
@@ -361,7 +364,7 @@ func (s MeshService) readLayer(layer *types.Layer, layerStatus pb.Layer_LayerSta
 }
 
 // LayersQuery returns all mesh data, layer by layer
-func (s MeshService) LayersQuery(_ context.Context, in *pb.LayersQueryRequest) (*pb.LayersQueryResponse, error) {
+func (s MeshService) LayersQuery(ctx context.Context, in *pb.LayersQueryRequest) (*pb.LayersQueryResponse, error) {
 	log.Info("GRPC MeshService.LayersQuery")
 
 	var startLayer, endLayer types.LayerID
@@ -398,11 +401,11 @@ func (s MeshService) LayersQuery(_ context.Context, in *pb.LayersQueryRequest) (
 		// internal or an input error? For now, all missing layers produce
 		// internal errors.
 		if layer == nil || err != nil {
-			log.Error("error retrieving layer data: %s", err)
+			log.With().Error("error retrieving layer data", log.Err(err))
 			return nil, status.Errorf(codes.Internal, "error retrieving layer data")
 		}
 
-		pbLayer, err := s.readLayer(layer, layerStatus)
+		pbLayer, err := s.readLayer(ctx, layer, layerStatus)
 		if err != nil {
 			return nil, err
 		}
@@ -460,7 +463,7 @@ func (s MeshService) AccountMeshDataStream(in *pb.AccountMeshDataStreamRequest, 
 				pbActivation, err := convertActivation(activation)
 				if err != nil {
 					errmsg := "error serializing activation data"
-					log.Error(fmt.Sprintf("%s: %s", errmsg, err))
+					log.With().Error(errmsg, log.Err(err))
 					return status.Errorf(codes.Internal, errmsg)
 				}
 				if err := stream.Send(&pb.AccountMeshDataStreamResponse{
@@ -515,7 +518,7 @@ func (s MeshService) LayerStream(_ *pb.LayerStreamRequest, stream pb.MeshService
 				log.Info("LayerStream closed, shutting down")
 				return nil
 			}
-			pbLayer, err := s.readLayer(layer.Layer, convertLayerStatus(layer.Status))
+			pbLayer, err := s.readLayer(stream.Context(), layer.Layer, convertLayerStatus(layer.Status))
 			if err != nil {
 				return err
 			}

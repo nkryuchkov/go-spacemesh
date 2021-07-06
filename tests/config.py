@@ -1,16 +1,4 @@
-import os
-
-
-def get_es_usr():
-    if "ES_USER" not in os.environ:
-        raise Exception("ES_USER environment variable must be set")
-    return os.getenv("ES_USER")
-
-
-def get_es_password():
-    if "ES_PASS" not in os.environ:
-        raise Exception("ES_PASS environment variable must be set")
-    return os.getenv("ES_PASS")
+import tests.utils as ut
 
 
 BOOT_DEPLOYMENT_FILE = './k8s/bootstrapoet-w-conf.yml'
@@ -24,11 +12,19 @@ FLUENT_BIT_CONF_DIR = './elk/fluent-bit/'
 KIBANA_CONF_DIR = './elk/kibana/'
 LOGSTASH_CONF_DIR = './elk/logstash/'
 
-ES_USER_LOCAL = get_es_usr()
-ES_PASS_LOCAL = get_es_password()
-MAIN_ES_IP = "35.197.82.152"
+ES_USER_LOCAL = ut.get_env("ES_USER")
+ES_PASS_LOCAL = ut.get_env("ES_PASS")
+MAIN_ES_IP = ut.get_env("MAIN_ES_IP")
 MAIN_ES_URL = f"{MAIN_ES_IP}:9200"
 
+PROJECT_ID = ut.get_env("PROJECT_NAME")
+CLUSTER_NAME = ut.get_env("CLUSTER_NAME")
+CLUSTER_ZONE = ut.get_env("CLUSTER_ZONE")
+
+TD_QUEUE_NAME = ut.get_env("TD_QUEUE_NAME")
+TD_QUEUE_ZONE = ut.get_env("TD_QUEUE_ZONE")
+DUMP_QUEUE_NAME = ut.get_env("DUMP_QUEUE_NAME")
+DUMP_QUEUE_ZONE = ut.get_env("DUMP_QUEUE_ZONE")
 
 BOOTSTRAP_PORT = 7513
 ORACLE_SERVER_PORT = 3030

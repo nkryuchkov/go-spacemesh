@@ -1,3 +1,4 @@
+from datetime import datetime
 from kubernetes import client
 from kubernetes.client.rest import ApiException
 import os
@@ -15,7 +16,8 @@ def remove_clusterrole_binding(shipper_name, crb_name):
         k8s_client.delete_cluster_role_binding(crb_name)
         print(f"\nsuccessfully deleted: {crb_name}")
     except Exception as e:
-        print(f"\n{shipper_name} cluster role binding deletion has failed, manually delete {crb_name}")
+        print(f"\n{shipper_name} cluster role binding deletion has failed, please manually delete {crb_name}:")
+        print(f"kubectl delete clusterrolebinding {crb_name}")
 
 
 def filebeat_teardown(namespace):
@@ -120,7 +122,13 @@ def add_deployment_dir(namespace, dir_path, delete=False):
                 k8s_client.create_namespaced_role_binding(body=dep, namespace=namespace)
             elif dep["kind"] == 'ClusterRoleBinding':
                 k8s_client = client.RbacAuthorizationV1Api()
-                k8s_client.create_cluster_role_binding(body=dep)
+                try:
+                    k8s_client.create_cluster_role_binding(body=dep)
+                except ApiException as e:
+                    if e.status == 409:
+                        print(f"cluster role binding already exists")
+                        continue
+                    raise e
             elif dep["kind"] == 'ConfigMap':
                 k8s_client = client.CoreV1Api()
                 k8s_client.create_namespaced_config_map(body=dep, namespace=namespace)
@@ -198,3 +206,34 @@ def wait_for_namespaced_deletion(name, namespace, deletion_func, list_func, time
             if item.metadata.name == name:
                 deleted = False
     return deleted
+
+
+def wait_for_daemonset_to_be_ready(name, namespace, timeout=None):
+    wait_for_to_be_ready("daemonset", name, namespace, timeout=timeout)
+
+
+def resolve_read_status_func(obj_name):
+    if obj_name == "daemonset":
+        return client.AppsV1Api().read_namespaced_daemon_set_status
+    else:
+        raise ValueError(f"resolve_read_status_func: {obj_name} is not a valid value")
+
+
+def wait_for_to_be_ready(obj_name, name, namespace, timeout=None):
+    start = datetime.now()
+    while True:
+        read_func = resolve_read_status_func(obj_name)
+        resp = read_func(name=name, namespace=namespace)
+        total_sleep_time = (datetime.now()-start).total_seconds()
+        number_ready = resp.status.number_ready
+        updated_number_scheduled = resp.status.updated_number_scheduled
+        if number_ready and updated_number_scheduled and number_ready == updated_number_scheduled:
+            print("Total time waiting for {3} {0} [size: {1}]: {2} sec".format(name, number_ready, total_sleep_time,
+                                                                               obj_name))
+            break
+        print("{0}/{1} pods ready {2} sec               ".format(number_ready, updated_number_scheduled, total_sleep_time), end="\r")
+        time.sleep(1)
+
+        if timeout and total_sleep_time > timeout:
+            raise Exception(f"Timeout waiting for {obj_name} to be ready")
+

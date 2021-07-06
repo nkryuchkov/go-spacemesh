@@ -1,15 +1,20 @@
 package mesh
 
 import (
+	"context"
+	"math/big"
+	"strconv"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
 	"github.com/spacemeshos/go-spacemesh/common/types"
 	"github.com/spacemeshos/go-spacemesh/log"
 	"github.com/spacemeshos/go-spacemesh/rand"
 	"github.com/spacemeshos/go-spacemesh/signing"
-	"github.com/stretchr/testify/assert"
-	"math/big"
-	"strconv"
-	"testing"
 )
+
+var goldenATXID = types.ATXID(types.HexToHash32("77777"))
 
 type MockMapState struct {
 	Rewards     map[types.Address]*big.Int
@@ -94,7 +99,7 @@ func TestMesh_AccumulateRewards_happyFlow(t *testing.T) {
 	block1 := types.NewExistingBlock(1, []byte(rand.String(8)), nil)
 
 	coinbase1 := types.HexToAddress("0xaaa")
-	atx := newActivationTx(types.NodeID{Key: "1", VRFPublicKey: []byte("bbbbb")}, 0, *types.EmptyATXID, 1, 0, *types.EmptyATXID, coinbase1, 10, []types.BlockID{}, &types.NIPST{})
+	atx := newActivationTx(types.NodeID{Key: "1", VRFPublicKey: []byte("bbbbb")}, 0, *types.EmptyATXID, 1, 0, goldenATXID, coinbase1, 10, []types.BlockID{}, &types.NIPST{})
 	atxDB.AddAtx(atx.ID(), atx)
 	block1.ATXID = atx.ID()
 	totalFee += addTransactionsWithFee(t, layers.DB, block1, 15, 7)
@@ -102,7 +107,7 @@ func TestMesh_AccumulateRewards_happyFlow(t *testing.T) {
 	block2 := types.NewExistingBlock(1, []byte(rand.String(8)), nil)
 
 	coinbase2 := types.HexToAddress("0xbbb")
-	atx = newActivationTx(types.NodeID{Key: "2", VRFPublicKey: []byte("bbbbb")}, 0, *types.EmptyATXID, 1, 0, *types.EmptyATXID, coinbase2, 10, []types.BlockID{}, &types.NIPST{})
+	atx = newActivationTx(types.NodeID{Key: "2", VRFPublicKey: []byte("bbbbb")}, 0, *types.EmptyATXID, 1, 0, goldenATXID, coinbase2, 10, []types.BlockID{}, &types.NIPST{})
 	atxDB.AddAtx(atx.ID(), atx)
 	block2.ATXID = atx.ID()
 	totalFee += addTransactionsWithFee(t, layers.DB, block2, 13, rand.Int63n(100))
@@ -110,7 +115,7 @@ func TestMesh_AccumulateRewards_happyFlow(t *testing.T) {
 	block3 := types.NewExistingBlock(1, []byte(rand.String(8)), nil)
 
 	coinbase3 := types.HexToAddress("0xccc")
-	atx = newActivationTx(types.NodeID{Key: "3", VRFPublicKey: []byte("bbbbb")}, 0, *types.EmptyATXID, 1, 0, *types.EmptyATXID, coinbase3, 10, []types.BlockID{}, &types.NIPST{})
+	atx = newActivationTx(types.NodeID{Key: "3", VRFPublicKey: []byte("bbbbb")}, 0, goldenATXID, 1, 0, goldenATXID, coinbase3, 10, []types.BlockID{}, &types.NIPST{})
 	atxDB.AddAtx(atx.ID(), atx)
 	block3.ATXID = atx.ID()
 	totalFee += addTransactionsWithFee(t, layers.DB, block3, 17, rand.Int63n(100))
@@ -118,7 +123,7 @@ func TestMesh_AccumulateRewards_happyFlow(t *testing.T) {
 	block4 := types.NewExistingBlock(1, []byte(rand.String(8)), nil)
 
 	coinbase4 := types.HexToAddress("0xddd")
-	atx = newActivationTx(types.NodeID{Key: "4", VRFPublicKey: []byte("bbbbb")}, 0, *types.EmptyATXID, 1, 0, *types.EmptyATXID, coinbase4, 10, []types.BlockID{}, &types.NIPST{})
+	atx = newActivationTx(types.NodeID{Key: "4", VRFPublicKey: []byte("bbbbb")}, 0, goldenATXID, 1, 0, goldenATXID, coinbase4, 10, []types.BlockID{}, &types.NIPST{})
 	atxDB.AddAtx(atx.ID(), atx)
 	block4.ATXID = atx.ID()
 	totalFee += addTransactionsWithFee(t, layers.DB, block4, 16, rand.Int63n(100))
@@ -152,7 +157,7 @@ func createLayer(t testing.TB, mesh *Mesh, id types.LayerID, numOfBlocks, maxTra
 		block1 := types.NewExistingBlock(id, []byte(rand.String(8)), nil)
 		nodeID := types.NodeID{Key: strconv.Itoa(i), VRFPublicKey: []byte("bbbbb")}
 		coinbase := types.HexToAddress(nodeID.Key)
-		atx := newActivationTx(nodeID, 0, *types.EmptyATXID, 1, 0, *types.EmptyATXID, coinbase, 10, []types.BlockID{}, &types.NIPST{})
+		atx := newActivationTx(nodeID, 0, goldenATXID, 1, 0, goldenATXID, coinbase, 10, []types.BlockID{}, &types.NIPST{})
 		atxDB.AddAtx(atx.ID(), atx)
 		block1.ATXID = atx.ID()
 
@@ -220,7 +225,7 @@ func TestMesh_updateStateWithLayer(t *testing.T) {
 	// this should be played until numOfLayers -1 if we want to compare states
 	for i := 0; i < numOfLayers-1; i++ {
 		blockIds := copyLayer(t, mesh, mesh2, atxDB2, types.LayerID(i))
-		mesh2.HandleValidatedLayer(types.LayerID(i), blockIds)
+		mesh2.HandleValidatedLayer(context.TODO(), types.LayerID(i), blockIds)
 	}
 	// test states are the same when one input is from tortoise and the other from hare
 	assert.Equal(t, s.Txs, s2.Txs)
@@ -248,15 +253,15 @@ func TestMesh_updateStateWithLayer(t *testing.T) {
 	// this should be played until numOfLayers -1 if we want to compare states
 	for i := 0; i < numOfLayers-3; i++ {
 		blockIds := copyLayer(t, mesh, mesh3, atxDB3, types.LayerID(i))
-		mesh3.HandleValidatedLayer(types.LayerID(i), blockIds)
+		mesh3.HandleValidatedLayer(context.TODO(), types.LayerID(i), blockIds)
 	}
 	s3Len := len(s3.Txs)
 	blockIds := copyLayer(t, mesh, mesh3, atxDB3, types.LayerID(numOfLayers-2))
-	mesh3.HandleValidatedLayer(types.LayerID(numOfLayers-2), blockIds)
+	mesh3.HandleValidatedLayer(context.TODO(), types.LayerID(numOfLayers-2), blockIds)
 	assert.Equal(t, s3Len, len(s3.Txs))
 
 	blockIds = copyLayer(t, mesh, mesh3, atxDB3, types.LayerID(numOfLayers-3))
-	mesh3.HandleValidatedLayer(types.LayerID(numOfLayers-3), blockIds)
+	mesh3.HandleValidatedLayer(context.TODO(), types.LayerID(numOfLayers-3), blockIds)
 	assert.Equal(t, s.Txs, s3.Txs)
 }
 
@@ -275,7 +280,7 @@ func copyLayer(t *testing.T, srcMesh, dstMesh *Mesh, dstAtxDb *AtxDbMock, id typ
 		atx, err := srcMesh.GetFullAtx(b.ATXID)
 		assert.NoError(t, err)
 		dstAtxDb.AddAtx(atx.ID(), atx)
-		err = dstMesh.AddBlockWithTxs(b)
+		err = dstMesh.AddBlockWithTxs(context.TODO(), b)
 		assert.NoError(t, err)
 		blockIds = append(blockIds, b.ID())
 	}
@@ -372,5 +377,5 @@ func newActivationTx(nodeID types.NodeID, sequence uint64, prevATX types.ATXID, 
 		StartTick:      startTick,
 		PositioningATX: positioningATX,
 	}
-	return types.NewActivationTx(nipstChallenge, coinbase, nipst, nil)
+	return types.NewActivationTx(nipstChallenge, coinbase, nipst, 0, nil)
 }

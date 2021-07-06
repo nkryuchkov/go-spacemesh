@@ -4,6 +4,7 @@ import re
 import time
 from collections import defaultdict
 from datetime import datetime
+from typing import Dict, List
 
 from elasticsearch_dsl import Search, Q
 
@@ -59,13 +60,18 @@ def get_block_creation_msgs(namespace, pod_name, find_fails=False, from_ts=None,
 
 
 def get_done_syncing_msgs(namespace, pod_name):
-    done_waiting_msg = "Node is synced"
+    done_waiting_msg = "node is synced"
     return get_all_msg_containing(namespace, pod_name, done_waiting_msg)
 
 
 def get_app_started_msgs(namespace, pod_name):
     app_started_msg = "App started"
     return get_all_msg_containing(namespace, pod_name, app_started_msg)
+
+
+def get_beacon_msgs(namespace, pod_name):
+    beacon_msg = "Calculated beacon"
+    return get_all_msg_containing(namespace, pod_name, beacon_msg)
 
 
 def get_all_msg_containing(namespace, pod_name, msg_data, find_fails=False, from_ts=None, to_ts=None, is_print=True):
@@ -177,7 +183,7 @@ def query_message(indx, namespace, client_po_name, fields, find_fails=False, sta
     :param indx: string, current index
     :param namespace: string, namespace to query
     :param client_po_name: string, pod name
-    :param fields: dictionary, for example {'M': 'ATX published'}
+    :param fields: dictionary, for example {'M': 'atx published'}
     :param find_fails: bool, if true print unmatching results
     :param start_time: NOT IN USE, should be deleted
     :param queries: elasticsearch_dsl.Q, queries to append to the new query
@@ -210,7 +216,7 @@ def query_message(indx, namespace, client_po_name, fields, find_fails=False, sta
     return s
 
 
-atx = collections.namedtuple('atx', ['atx_id', 'layer_id', 'published_in_epoch', 'timestamp'])
+Atx = collections.namedtuple('atx', ['atx_id', 'layer_id', 'published_in_epoch', 'timestamp', 'weight', 'node_id'])
 
 
 # TODO this can be a util function
@@ -218,7 +224,7 @@ def parseAtx(log_messages):
     node2blocks = {}
     for log in log_messages:
         nid = re.split(r'\.', log.N)[0]
-        matched_atx = atx(log.atx_id, log.layer_id, log.epoch_id, log.T)
+        matched_atx = Atx(log.atx_id, log.layer_id, log.epoch_id, log.T, log.weight, log.node_id)
         if nid in node2blocks:
             node2blocks[nid].append(matched_atx)
         else:
@@ -298,9 +304,7 @@ def node_published_atx(deployment, node_id, epoch_id):
     return len(output) != 0
 
 
-def get_atx_per_node(deployment):
-    # based on log: atx published! id: %v, prevATXID: %v, posATXID: %v, layer: %v,
-    # published in epoch: %v, active set: %v miner: %v view %v
+def get_atx_per_node(deployment) -> Dict[str, List[Atx]]:
     block_fields = {"M": "atx published"}
     atx_logs = query_message(current_index, deployment, deployment, block_fields, True)
     print("found " + str(len(atx_logs)) + " atxs")
@@ -308,9 +312,38 @@ def get_atx_per_node(deployment):
     return nodes
 
 
+def get_atxs(deployment) -> List[Atx]:
+    # based on log: atx published! id: %v, prevATXID: %v, posATXID: %v, layer: %v,
+    # published in epoch: %v, active set: %v miner: %v view %v
+    atx_filter = {"M": "atx published"}
+    atx_logs = query_message(current_index, deployment, deployment, atx_filter, True)
+    print(f"found {len(atx_logs)} atxs")
+
+    atxs = []
+    for log in atx_logs:
+        atxs.append(Atx(log.atx_id, log.layer_id, log.epoch_id, log.T, log.weight, log.node_id))
+    return atxs
+
+
+Block = collections.namedtuple("Block", ("node_id", "block_id", "layer_id", "epoch_id", "atx_id"))
+
+
+def get_blocks(deployment) -> List[Block]:
+    # based on log: atx published! id: %v, prevATXID: %v, posATXID: %v, layer: %v,
+    # published in epoch: %v, active set: %v miner: %v view %v
+    blocks_filter = {"M": CREATED_BLOCK_MSG}
+    block_logs = query_message(current_index, deployment, deployment, blocks_filter, True)
+    print(f"found {len(block_logs)} blocks")
+
+    blocks = []
+    for log in block_logs:
+        blocks.append(Block(log.node_id, log.block_id, log.layer_id, log.epoch_id, log.atx_id))
+    return blocks
+
+
 def get_nodes_up(deployment):
     # based on log:
-    block_fields = {"M": "Starting Spacemesh"}
+    block_fields = {"M": "starting Spacemesh"}
     logs = query_message(current_index, deployment, deployment, block_fields, True)
     print("found " + str(len(logs)) + " nodes up")
     return len(logs)
@@ -323,7 +356,7 @@ def find_dups(indx, namespace, client_po_name, fields, max=1):
     should show up if the indexing was functioning well.
 
     Usage : find_dups(current_index, "t7t9e", "client-t7t9e-28qj7",
-    {'M':'new_gossip_message', 'protocol': 'api_test_gossip'}, 10)
+    {'M':'gossip message is new', 'protocol': 'api_test_gossip'}, 10)
     """
 
     es = ES(namespace).get_search_api()
@@ -349,7 +382,7 @@ def find_dups(indx, namespace, client_po_name, fields, max=1):
 
 def find_missing(indx, namespace, client_po_name, fields, min=1):
     # Usage : find_dups(current_index, "t7t9e", "client-t7t9e-28qj7",
-    # {'M':'new_gossip_message', 'protocol': 'api_test_gossip'}, 10)
+    # {'M':'gossip message is new', 'protocol': 'api_test_gossip'}, 10)
 
     es = ES(namespace).get_search_api()
     fltr = get_pod_name_and_namespace_queries(client_po_name, namespace)
@@ -380,7 +413,7 @@ def find_missing(indx, namespace, client_po_name, fields, min=1):
 
 
 def query_hare_output_set(indx, ns, layer):
-    hits = query_message(indx, ns, ns, {'M': 'Consensus process terminated', 'layer_id': str(layer)}, True)
+    hits = query_message(indx, ns, ns, {'M': 'consensus process terminated', 'layer_id': str(layer)}, True)
     lst = [h.current_set for h in hits]
 
     return lst
@@ -403,7 +436,7 @@ def query_round_3(indx, ns, layer):
 
 
 def query_pre_round(indx, ns, layer):
-    return query_message(indx, ns, ns, {'M': 'Fatal: PreRound ended with empty set', 'layer_id': str(layer)}, False)
+    return query_message(indx, ns, ns, {'M': 'preround ended with empty set', 'layer_id': str(layer)}, False)
 
 
 def query_no_svp(indx, ns):
@@ -411,11 +444,11 @@ def query_no_svp(indx, ns):
 
 
 def query_empty_set(indx, ns):
-    return query_message(indx, ns, ns, {'M': 'Fatal: PreRound ended with empty set'}, False)
+    return query_message(indx, ns, ns, {'M': 'preround ended with empty set'}, False)
 
 
 def query_new_iteration(indx, ns):
-    return query_message(indx, ns, ns, {'M': 'Starting new iteration'}, False)
+    return query_message(indx, ns, ns, {'M': 'starting new iteration'}, False)
 
 
 def query_mem_usage(indx, ns):
@@ -433,6 +466,11 @@ def query_atx_per_epoch(ns, epoch_id, index=current_index):
 def query_atx_per_node_and_epoch(ns, node_id, epoch_id, index=current_index):
     fields = {'M': 'atx published', 'epoch_id': str(epoch_id), 'node_id': str(node_id)}
     return query_message(index, ns, ns, fields, False)
+
+
+def query_protocol_started(ns, pod_name, protocol_name, index=current_index):
+    fields = {'M': 'starting protocol', 'protocol': protocol_name}
+    return query_message(index, ns, pod_name, fields, False)
 
 
 def message_propagation(deployment, query_fields):
@@ -472,7 +510,7 @@ def all_atx_max_propagation(deployment, samples_per_node=1):
         for i in range(samples_per_node):
             atx = random.choice(nodes[n])
             # id = re.split(r'\.', x.N)[0]
-            block_recv_msg = {"M": "got new ATX", "atx_id": atx.atx_id}
+            block_recv_msg = {"M": "got new atx", "atx_id": atx.atx_id}
             # if we have a delta (we found 2 times to get the diff from, check if this delta is the greatest.)
             prop, max_message = message_propagation(deployment, block_recv_msg)
             if prop is not None and (max_propagation is None or prop > max_propagation):
@@ -528,5 +566,5 @@ def assert_equal_state_roots(indx, ns):
 
 
 def assert_no_contextually_invalid_atxs(indx, ns):
-    hits = query_message(indx, ns, ns, {'M': 'ATX failed contextual validation'})
+    hits = query_message(indx, ns, ns, {'M': 'atx failed contextual validation'})
     assert len(hits) == 0

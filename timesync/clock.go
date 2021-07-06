@@ -48,20 +48,23 @@ func NewClock(c Clock, tickInterval time.Duration, genesisTime time.Time, logger
 }
 
 func (t *TimeClock) startClock() {
-	t.log.Info("starting global clock now=%v genesis=%v", t.clock.Now(), t.startEpoch)
+	t.log.Info("starting global clock now=%v genesis=%v %p", t.clock.Now(), t.startEpoch, t)
 
 	for {
 		currLayer := t.Ticker.TimeToLayer(t.clock.Now())    // get current layer
 		nextTickTime := t.Ticker.LayerToTime(currLayer + 1) // get next tick time for the next layer
 		diff := nextTickTime.Sub(t.clock.Now())
 		tmr := time.NewTimer(diff)
-		t.log.With().Info("global clock going to sleep before next layer", log.String("diff", diff.String()),
-			log.FieldNamed("next_layer", currLayer))
+		t.log.With().Info("global clock going to sleep before next layer",
+			log.String("diff", diff.String()),
+			log.FieldNamed("curr_layer", currLayer))
 		select {
 		case <-tmr.C:
 			// notify subscribers
 			if missed, err := t.Notify(); err != nil {
-				t.log.With().Error("could not notify subscribers", log.Err(err), log.Int("missed", missed))
+				t.log.With().Error("could not notify subscribers",
+					log.Err(err),
+					log.Int("missed", missed))
 			}
 		case <-t.stop:
 			tmr.Stop()
@@ -82,7 +85,9 @@ func (t *TimeClock) GetInterval() time.Duration {
 
 // Close closes the clock ticker
 func (t *TimeClock) Close() {
+	t.log.Info("closing clock %p", t)
 	t.once.Do(func() {
+		t.log.Info("closed clock %p", t)
 		close(t.stop)
 	})
 }
