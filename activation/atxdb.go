@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -413,33 +414,55 @@ func (db *DB) StoreAtx(ech types.EpochID, atx *types.ActivationTx) error {
 	db.Lock()
 	defer db.Unlock()
 
+	db.log.Info("[StoreAtx] Storing ATX",
+		log.Uint32("epoch_id", uint32(ech)),
+		log.String("atx", atx.ShortString()))
+
 	// todo: maybe cleanup DB if failed by using defer (#1921)
 	if _, err := db.atxs.Get(getAtxHeaderKey(atx.ID())); err == nil {
 		// exists - how should we handle this?
+		db.log.Info("[StoreAtx] ATX already exists",
+			log.Uint32("epoch_id", uint32(ech)),
+			log.String("atx", atx.ShortString()))
+
 		return nil
 	}
 
+	db.log.Info("[StoreAtx] ATX doesn't already exist",
+		log.Uint32("epoch_id", uint32(ech)),
+		log.String("atx", atx.ShortString()))
+
 	err := db.storeAtxUnlocked(atx)
+	db.log.Info("[StoreAtx] storeAtxUnlocked",
+		log.Err(err))
 	if err != nil {
 		return err
 	}
 
 	err = db.updateTopAtxIfNeeded(atx)
+	db.log.Info("[StoreAtx] updateTopAtxIfNeeded",
+		log.Err(err))
 	if err != nil {
 		return err
 	}
 
 	err = db.addAtxToNodeID(atx.NodeID, atx)
+	db.log.Info("[StoreAtx] addAtxToNodeID",
+		log.Err(err))
 	if err != nil {
 		return err
 	}
 
 	err = db.addNodeAtxToEpoch(atx.PubLayerID.GetEpoch(), atx.NodeID, atx)
+	db.log.Info("[StoreAtx] addNodeAtxToEpoch",
+		log.Err(err))
 	if err != nil {
 		return err
 	}
 
 	err = db.addAtxTimestamp(time.Now(), atx)
+	db.log.Info("[StoreAtx] addAtxTimestamp",
+		log.Err(err))
 	if err != nil {
 		return err
 	}
@@ -449,6 +472,12 @@ func (db *DB) StoreAtx(ech types.EpochID, atx *types.ActivationTx) error {
 }
 
 func (db *DB) storeAtxUnlocked(atx *types.ActivationTx) error {
+	db.log.Info("[storeAtxUnlocked] Storing unlocked ATX",
+		log.String("atx", atx.ShortString()),
+		log.Binary("header_key", getAtxHeaderKey(atx.ID())),
+		log.Binary("body_key", getAtxBodyKey(atx.ID())),
+	)
+
 	atxHeaderBytes, err := types.InterfaceToBytes(atx.ActivationTxHeader)
 	if err != nil {
 		return err
@@ -485,6 +514,10 @@ type atxIDAndLayer struct {
 // updateTopAtxIfNeeded replaces the top ATX (positioning ATX candidate) if the latest ATX has a higher layer ID.
 // This function is not thread safe and needs to be called under a global lock.
 func (db *DB) updateTopAtxIfNeeded(atx *types.ActivationTx) error {
+	db.log.Info("[updateTopAtxIfNeeded] Updating top ATX if needed",
+		log.String("atx", atx.ShortString()),
+	)
+
 	currentTopAtx, err := db.getTopAtx()
 	if err != nil && err != database.ErrNotFound {
 		return fmt.Errorf("failed to get current atx: %v", err)
@@ -501,6 +534,11 @@ func (db *DB) updateTopAtxIfNeeded(atx *types.ActivationTx) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal top atx: %v", err)
 	}
+
+	db.log.Info("[updateTopAtxIfNeeded] needed",
+		log.String("atx", atx.ShortString()),
+		log.String("key", namespaceTop),
+	)
 
 	err = db.atxs.Put([]byte(namespaceTop), topAtxBytes)
 	if err != nil {
@@ -539,6 +577,11 @@ func (db *DB) getAtxTimestamp(id types.ATXID) (time.Time, error) {
 
 // addAtxToNodeID inserts activation atx id by node
 func (db *DB) addAtxToNodeID(nodeID types.NodeID, atx *types.ActivationTx) error {
+	db.log.Info("[addAtxToNodeID] Adding ATX to node ID",
+		log.String("atx", atx.ShortString()),
+		log.Binary("key", getNodeAtxKey(nodeID, atx.PubLayerID.GetEpoch())),
+	)
+
 	err := db.atxs.Put(getNodeAtxKey(nodeID, atx.PubLayerID.GetEpoch()), atx.ID().Bytes())
 	if err != nil {
 		return fmt.Errorf("failed to store atx ID for node: %v", err)
@@ -547,6 +590,13 @@ func (db *DB) addAtxToNodeID(nodeID types.NodeID, atx *types.ActivationTx) error
 }
 
 func (db *DB) addNodeAtxToEpoch(epoch types.EpochID, nodeID types.NodeID, atx *types.ActivationTx) error {
+	db.log.Info("[addNodeAtxToEpoch] Adding node ATX to epoch",
+		log.String("atx", atx.ShortString()),
+		log.Uint32("epoch", uint32(epoch)),
+		log.String("node_id", nodeID.ShortString()),
+		log.Binary("key", getNodeAtxEpochKey(atx.PubLayerID.GetEpoch(), nodeID)),
+	)
+
 	db.log.Info("added atx %v to epoch %v", atx.ID().ShortString(), epoch)
 	err := db.atxs.Put(getNodeAtxEpochKey(atx.PubLayerID.GetEpoch(), nodeID), atx.ID().Bytes())
 	if err != nil {
@@ -556,6 +606,11 @@ func (db *DB) addNodeAtxToEpoch(epoch types.EpochID, nodeID types.NodeID, atx *t
 }
 
 func (db *DB) addAtxTimestamp(timestamp time.Time, atx *types.ActivationTx) error {
+	db.log.Info("[addAtxTimestamp] Adding ATX timestamp",
+		log.String("atx", atx.ShortString()),
+		log.Binary("key", getAtxTimestampKey(atx.ID())),
+	)
+
 	db.log.Info("added atx %v timestamp %v", atx.ID().ShortString(), timestamp)
 
 	b := make([]byte, 8)
@@ -607,7 +662,24 @@ func (db *DB) GetEpochAtxs(epochID types.EpochID) (atxs []types.ATXID) {
 // GetNodeAtxIDForEpoch returns an atx published by the provided nodeID for the specified publication epoch. meaning the atx
 // that the requested nodeID has published. it returns an error if no atx was found for provided nodeID
 func (db *DB) GetNodeAtxIDForEpoch(nodeID types.NodeID, publicationEpoch types.EpochID) (types.ATXID, error) {
-	id, err := db.atxs.Get(getNodeAtxKey(nodeID, publicationEpoch))
+	key := getNodeAtxKey(nodeID, publicationEpoch)
+
+	db.log.Info("[GetNodeAtxIDForEpoch] Getting node ATX ID for epoch",
+		log.String("node_id", nodeID.ShortString()),
+		log.Uint32("epoch_id", uint32(publicationEpoch)),
+		log.Uint32("key", uint32(publicationEpoch)),
+	)
+
+	id, err := db.atxs.Get(key)
+
+	db.log.Info("[GetNodeAtxIDForEpoch] Got node ATX ID for epoch",
+		log.String("node_id", nodeID.ShortString()),
+		log.Uint32("epoch_id", uint32(publicationEpoch)),
+		log.Uint32("key", uint32(publicationEpoch)),
+		log.String("atx_id", types.ATXID(types.BytesToHash(id)).ShortString()),
+		log.Err(err),
+	)
+
 	if err != nil {
 		return *types.EmptyATXID, fmt.Errorf("atx for node %v with publication epoch %v: %v",
 			nodeID.ShortString(), publicationEpoch, err)
@@ -636,15 +708,41 @@ func (db *DB) GetAtxTimestamp(atxid types.ATXID) (time.Time, error) {
 
 // GetEpochWeight returns the total weight of ATXs targeting the given epochID.
 func (db *DB) GetEpochWeight(epochID types.EpochID) (uint64, []types.ATXID, error) {
+	db.log.Info("[GetEpochWeight] Getting epoch weight", log.Uint32("epoch_id", uint32(epochID)))
+
 	weight := uint64(0)
 	activeSet := db.GetEpochAtxs(epochID - 1)
+	var activeSetStringList []string
+	for _, atx := range activeSet {
+		activeSetStringList = append(activeSetStringList, atx.ShortString())
+	}
+
+	db.log.Info("[GetEpochWeight] Active set in previous epoch",
+		log.Uint32("current_epoch_id", uint32(epochID)),
+		log.Uint32("previous_epoch_id", uint32(epochID-1)),
+		log.String("active_set", strings.Join(activeSetStringList, ", ")),
+	)
+
 	for _, atxID := range activeSet {
 		atxHeader, err := db.GetAtxHeader(atxID)
 		if err != nil {
 			return 0, nil, err
 		}
 		weight += atxHeader.GetWeight()
+
+		db.log.Info("[GetEpochWeight] ATX weight",
+			log.Uint32("current_epoch_id", uint32(epochID)),
+			log.Uint32("previous_epoch_id", uint32(epochID-1)),
+			log.String("atx_id", atxID.ShortString()),
+			log.Uint64("weight", atxHeader.GetWeight()),
+		)
 	}
+
+	db.log.Info("[GetEpochWeight] Total weight in epoch",
+		log.Uint32("current_epoch_id", uint32(epochID)),
+		log.Uint64("weight", weight),
+	)
+
 	return weight, activeSet, nil
 }
 
