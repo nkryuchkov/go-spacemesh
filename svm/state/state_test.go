@@ -19,6 +19,7 @@ package state
 import (
 	"testing"
 
+	"github.com/spacemeshos/go-spacemesh/svm/svmtest"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/spacemeshos/go-spacemesh/common/types"
@@ -30,7 +31,9 @@ type StateSuite struct {
 	state *DB
 }
 
-var toAddr = types.BytesToAddress
+var toAddr = func(b []byte) types.Address {
+	return svmtest.GenerateAddress(b)
+}
 
 func TestDump(t *testing.T) {
 	s := &StateSuite{}
@@ -52,17 +55,17 @@ func TestDump(t *testing.T) {
 	// check that dump contains the state objects that are in trie
 	got := string(s.state.Dump())
 	want := `{
-	"root": "ba94994b7d4b6590b615f0a8ab543445312fd303fdab013f0b0fba920f8f228b",
+	"root": "932bb2f11e90290116a8c816b4ef6e700d8adf3d9c91c0430db927b68bad1fa4",
 	"accounts": {
-		"0000000000000000000000000000000000000001": {
+		"8d97df5ff83db01f7c97ccf9009e0aff4087543b742dd2e36bb2bfcd42a7aaf9": {
 			"nonce": 0,
 			"balance": 22
 		},
-		"0000000000000000000000000000000000000002": {
+		"cd0fe35a93a7949a27a24ce0af7d13292ea0a40ba65b01a805b93ca583b71ce8": {
 			"nonce": 0,
 			"balance": 44
 		},
-		"0000000000000000000000000000000000000102": {
+		"d77e9c2b79e13ad9c302f8379acd5d784bb58efc950cd2eeeee03551a196f75b": {
 			"nonce": 10,
 			"balance": 0
 		}

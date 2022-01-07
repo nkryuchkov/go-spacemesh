@@ -25,6 +25,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	pb "github.com/spacemeshos/api/release/go/spacemesh/v1"
 	"github.com/spacemeshos/ed25519"
+	"github.com/spacemeshos/go-spacemesh/svm/svmtest"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/grpc"
@@ -81,8 +82,8 @@ var (
 		poolByTxid:    make(map[types.TransactionID]*types.Transaction),
 	}
 	genTime    = GenesisTimeMock{time.Unix(genTimeUnix, 0)}
-	addr1      = types.HexToAddress("33333")
-	addr2      = types.HexToAddress("44444")
+	addr1      = svmtest.GenerateAddress(util.FromHex("33333"))
+	addr2      = svmtest.GenerateAddress(util.FromHex("44444"))
 	pub, _, _  = ed25519.GenerateKey(nil)
 	nodeID     = types.NodeID{Key: util.Bytes2Hex(pub), VRFPublicKey: []byte("22222")}
 	prevAtxID  = types.ATXID(types.HexToHash32("44444"))
@@ -328,7 +329,7 @@ func (t *TxAPIMock) ProcessedLayer() types.LayerID {
 }
 
 func NewTx(nonce uint64, recipient types.Address, signer *signing.EdSigner) *types.Transaction {
-	tx, err := types.NewSignedTx(nonce, recipient, 1, defaultGasLimit, defaultFee, signer)
+	tx, err := svmtest.GenerateCallTransaction(signer, recipient, nonce, 1, defaultGasLimit, defaultFee)
 	if err != nil {
 		return nil
 	}
@@ -2316,8 +2317,8 @@ func TestAccountMeshDataStream_comprehensive(t *testing.T) {
 		defer timer.Stop()
 
 		select {
-		case <-errCh:
-			t.Errorf("should not receive")
+		case err := <-errCh:
+			t.Errorf("should not receive err %v", err)
 		case <-timer.C:
 			return
 		}
@@ -3058,8 +3059,7 @@ func TestEventsReceived(t *testing.T) {
 		},
 	}
 
-	originAddr := types.Address{}
-	originAddr.SetBytes(signer1.PublicKey().Bytes())
+	originAddr := svmtest.GenerateAddress(signer1.PublicKey().Bytes())
 	accountReq2 := &pb.AccountDataStreamRequest{
 		Filter: &pb.AccountDataFilter{
 			AccountId: &pb.AccountId{Address: originAddr.Bytes()},

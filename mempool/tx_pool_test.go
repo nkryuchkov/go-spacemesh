@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spacemeshos/go-spacemesh/svm/svmtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -173,7 +174,7 @@ func createBatch(t testing.TB, signer *signing.EdSigner) ([]*types.Transaction, 
 	var txBatch []*types.Transaction
 	var txIDBatch []types.TransactionID
 	for i := uint64(0); i < 10000; i++ {
-		tx, err := types.NewSignedTx(5+1, types.Address{}, 50, 100, 1, signer)
+		tx, err := svmtest.GenerateCallTransaction(signer, types.Address{}, 5+1, 50, 100, 1)
 		require.NoError(t, err)
 		// tx := newTx(t, 5+i, 50, signer)
 		txBatch = append(txBatch, tx)
@@ -189,7 +190,7 @@ func newTx(t *testing.T, nonce, totalAmount uint64, signer *signing.EdSigner) *t
 }
 
 func createTransaction(t *testing.T, nonce uint64, destination types.Address, amount, fee uint64, signer *signing.EdSigner) *types.Transaction {
-	tx, err := types.NewSignedTx(nonce, destination, amount, 100, fee, signer)
+	tx, err := svmtest.GenerateCallTransaction(signer, destination, nonce, amount, 100, fee)
 	assert.NoError(t, err)
 	return tx
 }

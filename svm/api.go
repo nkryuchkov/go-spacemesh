@@ -14,6 +14,7 @@ import (
 	"github.com/spacemeshos/go-spacemesh/p2p"
 	"github.com/spacemeshos/go-spacemesh/p2p/pubsub"
 	"github.com/spacemeshos/go-spacemesh/svm/state"
+	"github.com/spacemeshos/go-spacemesh/svm/svmtest"
 )
 
 // IncomingTxProtocol is the protocol identifier for tx received by gossip that is used by the p2p.
@@ -42,10 +43,10 @@ func (svm *SVM) SetupGenesis(conf *config.GenesisConfig) error {
 			return fmt.Errorf("cannot decode entry %s for genesis account", id)
 		}
 		// just make it explicit that we want address and not a public key
-		if len(bytes) != types.AddressLength {
+		if len(bytes) != types.PublicKeyLength {
 			return fmt.Errorf("%s must be an address of size %d", id, types.AddressLength)
 		}
-		addr := types.BytesToAddress(bytes)
+		addr := svmtest.GenerateAddress(bytes)
 		svm.state.CreateAccount(addr)
 		svm.state.AddBalance(addr, balance)
 		svm.log.With().Info("genesis account created",

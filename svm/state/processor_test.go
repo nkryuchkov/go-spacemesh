@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/spacemeshos/ed25519"
+	"github.com/spacemeshos/go-spacemesh/common/util"
+	"github.com/spacemeshos/go-spacemesh/svm/svmtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -59,7 +61,7 @@ func createAccount(state *TransactionProcessor, addr types.Address, balance int6
 }
 
 func createTransaction(t *testing.T, nonce uint64, destination types.Address, amount, fee uint64, signer *signing.EdSigner) *types.Transaction {
-	tx, err := types.NewSignedTx(nonce, destination, amount, 100, fee, signer)
+	tx, err := svmtest.GenerateCallTransaction(signer, destination, nonce, amount, 100, fee)
 	assert.NoError(t, err)
 	return tx
 }
@@ -96,25 +98,24 @@ func (s *ProcessorStateSuite) TestTransactionProcessor_ApplyTransaction() {
 	assert.Equal(s.T(), uint64(1), s.processor.GetNonce(obj1.address))
 
 	want := `{
-	"root": "6de6ffd7eda4c1aa4de66051e4ad05afc1233e089f9e9afaf8174a4dc483fa57",
+	"root": "fb08d3657674e295a5ee3fd52e4196924be3ff6393ad18f4d1e2abac73eed0b3",
 	"accounts": {
-		"0000000000000000000000000000000000000002": {
+		"5e212c0980e4b39fc09721134aa02109374edfd260c0d3d03cb501c8d65457a9": {
+			"nonce": 1,
+			"balance": 15
+		},
+		"cd0fe35a93a7949a27a24ce0af7d13292ea0a40ba65b01a805b93ca583b71ce8": {
 			"nonce": 0,
 			"balance": 44
 		},
-		"0000000000000000000000000000000000000102": {
+		"d77e9c2b79e13ad9c302f8379acd5d784bb58efc950cd2eeeee03551a196f75b": {
 			"nonce": 10,
 			"balance": 2
-		},
-		"4aa02109374edfd260c0d3d03cb501c8d65457a9": {
-			"nonce": 1,
-			"balance": 15
 		}
 	}
 }`
-	if got != want {
-		s.T().Errorf("dump mismatch:\ngot: %s\nwant: %s\n", got, want)
-	}
+
+	assert.Equal(s.T(), want, got)
 }
 
 func SignerToAddr(signer *signing.EdSigner) types.Address {
@@ -199,18 +200,23 @@ func (s *ProcessorStateSuite) TestTransactionProcessor_ApplyTransaction_Errors()
 }
 
 func (s *ProcessorStateSuite) TestTransactionProcessor_ApplyRewards() {
+	addr1 := svmtest.GenerateAddress(util.FromHex("aaa"))
+	addr2 := svmtest.GenerateAddress(util.FromHex("bbb"))
+	addr3 := svmtest.GenerateAddress(util.FromHex("ccc"))
+	addr4 := svmtest.GenerateAddress(util.FromHex("ddd"))
+
 	s.processor.ApplyRewards(types.NewLayerID(1), map[types.Address]uint64{
-		types.HexToAddress("aaa"): 2000,
-		types.HexToAddress("bbb"): 2000,
-		types.HexToAddress("ccc"): 1000,
-		types.HexToAddress("ddd"): 1000,
+		addr1: 2000,
+		addr2: 2000,
+		addr3: 1000,
+		addr4: 1000,
 	},
 	)
 
-	assert.Equal(s.T(), s.processor.GetBalance(types.HexToAddress("aaa")), uint64(2000))
-	assert.Equal(s.T(), s.processor.GetBalance(types.HexToAddress("bbb")), uint64(2000))
-	assert.Equal(s.T(), s.processor.GetBalance(types.HexToAddress("ccc")), uint64(1000))
-	assert.Equal(s.T(), s.processor.GetBalance(types.HexToAddress("ddd")), uint64(1000))
+	assert.Equal(s.T(), s.processor.GetBalance(addr1), uint64(2000))
+	assert.Equal(s.T(), s.processor.GetBalance(addr2), uint64(2000))
+	assert.Equal(s.T(), s.processor.GetBalance(addr3), uint64(1000))
+	assert.Equal(s.T(), s.processor.GetBalance(addr4), uint64(1000))
 }
 
 func (s *ProcessorStateSuite) TestTransactionProcessor_ApplyTransaction_OrderByNonce() {
@@ -243,25 +249,23 @@ func (s *ProcessorStateSuite) TestTransactionProcessor_ApplyTransaction_OrderByN
 	assert.Equal(s.T(), uint64(2), s.processor.GetBalance(obj2.address))
 
 	want := `{
-	"root": "0fb9e074115e49b9a1d33949de2578459c158d8885ca10ad9edcd5d3a84fd67c",
+	"root": "438729ad189be3fa0d248d5812080c43b132efa9394e348a334faadc582815bb",
 	"accounts": {
-		"0000000000000000000000000000000000000002": {
+		"5e212c0980e4b39fc09721134aa02109374edfd260c0d3d03cb501c8d65457a9": {
+			"nonce": 4,
+			"balance": 1
+		},
+		"cd0fe35a93a7949a27a24ce0af7d13292ea0a40ba65b01a805b93ca583b71ce8": {
 			"nonce": 0,
 			"balance": 47
 		},
-		"0000000000000000000000000000000000000102": {
+		"d77e9c2b79e13ad9c302f8379acd5d784bb58efc950cd2eeeee03551a196f75b": {
 			"nonce": 10,
 			"balance": 2
-		},
-		"4aa02109374edfd260c0d3d03cb501c8d65457a9": {
-			"nonce": 4,
-			"balance": 1
 		}
 	}
 }`
-	if got != want {
-		s.T().Errorf("dump mismatch:\ngot: %s\nwant: %s\n", got, want)
-	}
+	assert.Equal(s.T(), want, got)
 }
 
 func (s *ProcessorStateSuite) TestTransactionProcessor_Reset() {
@@ -311,25 +315,23 @@ func (s *ProcessorStateSuite) TestTransactionProcessor_Reset() {
 	got := string(processor.Dump())
 
 	want := `{
-	"root": "4b7174d31e60ef1ed970137079e2b8044d9c381422dbcbe16e561d8a51a9f651",
+	"root": "dc0c6159638bdc65d1c7597d9be81803d985f24443e06022b2c0fca094a728c4",
 	"accounts": {
-		"0000000000000000000000000000000000000002": {
-			"nonce": 0,
-			"balance": 44
-		},
-		"198d6e08b28e813feb01e4a400839b85e18080ce": {
+		"17cb79fb2b4120f2b1ec65e4198d6e08b28e813feb01e4a400839b85e18080ce": {
 			"nonce": 11,
 			"balance": 28
 		},
-		"4aa02109374edfd260c0d3d03cb501c8d65457a9": {
+		"5e212c0980e4b39fc09721134aa02109374edfd260c0d3d03cb501c8d65457a9": {
 			"nonce": 2,
 			"balance": 19
+		},
+		"cd0fe35a93a7949a27a24ce0af7d13292ea0a40ba65b01a805b93ca583b71ce8": {
+			"nonce": 0,
+			"balance": 44
 		}
 	}
 }`
-	if got != want {
-		s.T().Errorf("dump mismatch:\ngot: %s\nwant: %s\n", got, want)
-	}
+	assert.Equal(s.T(), want, got)
 
 	err = processor.LoadState(types.NewLayerID(1))
 	assert.NoError(s.T(), err)
@@ -339,25 +341,23 @@ func (s *ProcessorStateSuite) TestTransactionProcessor_Reset() {
 	assert.Equal(s.T(), uint64(15), processor.GetBalance(obj1.address))
 
 	want = `{
-	"root": "9273645f6b9a62f32500021f5e0a89d3eb6ffd36b1b9f9f82fcaad4555951e97",
+	"root": "d2423a242725b8d114e422317b35136024199c5bd1d3e68c35b5933fab22b895",
 	"accounts": {
-		"0000000000000000000000000000000000000002": {
-			"nonce": 0,
-			"balance": 44
-		},
-		"198d6e08b28e813feb01e4a400839b85e18080ce": {
+		"17cb79fb2b4120f2b1ec65e4198d6e08b28e813feb01e4a400839b85e18080ce": {
 			"nonce": 10,
 			"balance": 42
 		},
-		"4aa02109374edfd260c0d3d03cb501c8d65457a9": {
+		"5e212c0980e4b39fc09721134aa02109374edfd260c0d3d03cb501c8d65457a9": {
 			"nonce": 1,
 			"balance": 15
+		},
+		"cd0fe35a93a7949a27a24ce0af7d13292ea0a40ba65b01a805b93ca583b71ce8": {
+			"nonce": 0,
+			"balance": 44
 		}
 	}
 }`
-	if got != want {
-		s.T().Errorf("dump mismatch:\ngot: %s\nwant: %s\n", got, want)
-	}
+	assert.Equal(s.T(), want, got)
 }
 
 func (s *ProcessorStateSuite) TestTransactionProcessor_Multilayer() {
@@ -426,7 +426,7 @@ func (s *ProcessorStateSuite) TestTransactionProcessor_Multilayer() {
 			err = processor.LoadState(types.NewLayerID(uint32(revertToLayer)))
 			s.Require().NoError(err)
 			got := string(processor.Dump())
-			s.Require().Equal(string(want), string(got))
+			s.Require().Equal(want, got)
 		}
 	}
 }
@@ -485,7 +485,7 @@ func createSignerTransaction(t *testing.T, key ed25519.PrivateKey) *types.Transa
 	r := require.New(t)
 	signer, err := signing.NewEdSignerFromBuffer(key)
 	r.NoError(err)
-	tx, err := types.NewSignedTx(1111, toAddr([]byte{0xde}), 123, 11, 456, signer)
+	tx, err := svmtest.GenerateCallTransaction(signer, toAddr([]byte{0xde}), 1111, 123, 11, 456)
 	r.NoError(err)
 	return tx
 }

@@ -1,21 +1,27 @@
 package types
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"sync"
 
 	"github.com/spacemeshos/go-spacemesh/common/util"
 	"github.com/spacemeshos/go-spacemesh/crypto/sha3"
 	"github.com/spacemeshos/go-spacemesh/log"
+	"github.com/spacemeshos/sha256-simd"
 )
 
 const (
+	// PublicKeyLength is the expected length of the public key.
+	PublicKeyLength = 20
 	// AddressLength is the expected length of the address.
-	AddressLength = 20
+	AddressLength = 32
 )
 
-// Address represents the 20 byte address of an spacemesh account.
+// Address represents the 20 byte address of a spacemesh account.
 type Address [AddressLength]byte
 
 // BytesToAddress returns Address with value b.
@@ -32,6 +38,7 @@ func BigToAddress(b *big.Int) Address { return BytesToAddress(b.Bytes()) }
 
 // HexToAddress returns Address with byte values of s.
 // If s is larger than len(h), s will be cropped from the left.
+// TODO(nkryuchkov): use svm.GenerateAddress instead
 func HexToAddress(s string) Address { return BytesToAddress(util.FromHex(s)) }
 
 // StringToAddress returns Address with byte values of s.
@@ -112,3 +119,42 @@ func (a *Address) SetBytes(b []byte) {
 	}
 	copy(a[AddressLength-len(b):], b)
 }
+
+type nonce128 struct {
+	mu          sync.Mutex
+	little, big uint64
+}
+
+func GenerateAddress(publicKey []byte) Address {
+	input := bytes.Repeat([]byte{0x00}, 20)
+	input = append(input, nonce.Next()...)
+	input = append(input, publicKey...)
+
+	sha := sha256.New()
+	sha.Write(input)
+	hash := sha.Sum(nil)
+
+	var addr Address
+	addr.SetBytes(hash)
+
+	return addr
+}
+
+func (n *nonce128) Next() []byte {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	a := make([]byte, 16)
+	binary.LittleEndian.PutUint64(a, n.little)
+	binary.LittleEndian.PutUint64(a, n.big)
+
+	// TODO(nkryuchkov): uncomment the implementation
+	//n.little++
+	//if n.little == 0 {
+	//	n.big++
+	//}
+
+	return a
+}
+
+var nonce nonce128

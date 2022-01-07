@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/spacemeshos/go-spacemesh/common/util"
+	"github.com/spacemeshos/go-spacemesh/svm/svmtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -27,7 +29,7 @@ func addTransactionsWithFee(t testing.TB, mesh *DB, numOfTxs int, fee int64) (in
 	txs := make([]*types.Transaction, 0, numOfTxs)
 	txIDs := make([]types.TransactionID, 0, numOfTxs)
 	for i := 0; i < numOfTxs; i++ {
-		tx, err := types.NewSignedTx(1, types.HexToAddress("1"), 10, 100, uint64(fee), signing.NewEdSigner())
+		tx, err := svmtest.GenerateCallTransaction(signing.NewEdSigner(), svmtest.GenerateAddress(util.FromHex("1")), 1, 10, 100, uint64(fee))
 		assert.NoError(t, err)
 		totalFee += fee
 		txs = append(txs, tx)
@@ -63,7 +65,7 @@ func TestMesh_AccumulateRewards_happyFlow(t *testing.T) {
 
 	lyr := types.GetEffectiveGenesis().Add(1)
 	for i, data := range blocksData {
-		coinbase1 := types.HexToAddress(data.addr)
+		coinbase1 := svmtest.GenerateAddress(util.FromHex(data.addr))
 		atx := newActivationTx(types.NodeID{Key: strconv.Itoa(i + 1), VRFPublicKey: []byte("bbbbb")}, 0, *types.EmptyATXID, lyr, 0, goldenATXID, coinbase1, &types.NIPost{})
 		tm.mockATXDB.AddAtx(atx.ID(), atx)
 		fee, txIDs := addTransactionsWithFee(t, tm.DB, data.numOfTxs, data.fee)
@@ -114,7 +116,7 @@ func NewTestRewardParams() Config {
 }
 
 func createBlock(t testing.TB, mesh *Mesh, lyrID types.LayerID, nodeID types.NodeID, maxTransactions int, atxDB *AtxDbMock) (*types.Block, int64) {
-	coinbase := types.HexToAddress(nodeID.Key)
+	coinbase := svmtest.GenerateAddress(util.FromHex(nodeID.Key))
 	atx := newActivationTx(nodeID, 0, goldenATXID, types.NewLayerID(1), 0, goldenATXID, coinbase, &types.NIPost{})
 	atxDB.AddAtx(atx.ID(), atx)
 	reward, txIDs := addTransactionsWithFee(t, mesh.DB, rand.Intn(maxTransactions), rand.Int63n(100))

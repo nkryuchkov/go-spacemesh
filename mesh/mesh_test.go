@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/spacemeshos/go-spacemesh/common/util"
+	"github.com/spacemeshos/go-spacemesh/svm/svmtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -471,7 +473,7 @@ func addManyTXsToPool(r *require.Assertions, msh *Mesh, numOfTxs int) ([]types.T
 	txs := make([]*types.Transaction, numOfTxs)
 	txIDs := make([]types.TransactionID, numOfTxs)
 	for i := 0; i < numOfTxs; i++ {
-		tx, err := types.NewSignedTx(1, types.HexToAddress("1"), 10, 100, rand.Uint64(), signing.NewEdSigner())
+		tx, err := svmtest.GenerateCallTransaction(signing.NewEdSigner(), svmtest.GenerateAddress(util.FromHex("1")), 1, 10, 100, rand.Uint64())
 		r.NoError(err)
 		txs[i] = tx
 		txIDs[i] = tx.ID()

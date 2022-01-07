@@ -20,6 +20,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	pb "github.com/spacemeshos/api/release/go/spacemesh/v1"
+	"github.com/spacemeshos/go-spacemesh/svm/svmtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -756,7 +757,7 @@ func TestSpacemeshApp_TransactionService(t *testing.T) {
 	txorigin := types.Address{}
 	txorigin.SetBytes(signer.PublicKey().Bytes())
 	dst := types.BytesToAddress([]byte{0x02})
-	tx, err := types.NewSignedTx(0, dst, 10, 1, 1, signer)
+	tx, err := svmtest.GenerateCallTransaction(signer, dst, 0, 10, 1, 1)
 	require.NoError(t, err, "unable to create signed mock tx")
 	txbytes, _ := types.InterfaceToBytes(tx)
 

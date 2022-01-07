@@ -3,6 +3,7 @@ package pendingtxs
 import (
 	"testing"
 
+	"github.com/spacemeshos/go-spacemesh/svm/svmtest"
 	"github.com/stretchr/testify/require"
 
 	"github.com/spacemeshos/go-spacemesh/common/types"
@@ -36,9 +37,7 @@ func newTx(t *testing.T, nonce, totalAmount, fee uint64) *types.Transaction {
 	signer, err := signing.NewEdSignerFromBuffer(signerBuf)
 	require.NoError(t, err)
 	copy(tx.Signature[:], signer.Sign(buf))
-	addr := types.Address{}
-	addr.SetBytes(signer.PublicKey().Bytes())
-	tx.SetOrigin(addr)
+	tx.SetOrigin(svmtest.GenerateAddress(signer.PublicKey().Bytes()))
 
 	return tx
 }

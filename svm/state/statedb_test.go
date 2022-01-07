@@ -19,6 +19,8 @@ package state
 import (
 	"testing"
 
+	"github.com/spacemeshos/go-spacemesh/common/util"
+	"github.com/spacemeshos/go-spacemesh/svm/svmtest"
 	"github.com/stretchr/testify/require"
 
 	"github.com/spacemeshos/go-spacemesh/common/types"
@@ -152,7 +154,7 @@ func TestCopy(t *testing.T) {
 // See https://github.com/ethereum/go-ethereum/pull/15225#issuecomment-380191512
 func TestCopyOfCopy(t *testing.T) {
 	sdb, _ := New(types.Hash32{}, NewDatabase(database.NewMemDatabase()))
-	addr := types.HexToAddress("aaaa")
+	addr := svmtest.GenerateAddress(util.FromHex("aaaa"))
 	sdb.SetBalance(addr, 42)
 
 	if got := sdb.Copy().GetBalance(addr); got != 42 {

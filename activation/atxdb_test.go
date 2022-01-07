@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/spacemeshos/ed25519"
+	"github.com/spacemeshos/go-spacemesh/svm/svmtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -45,7 +46,7 @@ func TestActivationDb_GetNodeLastAtxId(t *testing.T) {
 
 	atxdb := getAtxDb(t, "t6")
 	id1 := types.NodeID{Key: uuid.New().String()}
-	coinbase1 := types.HexToAddress("aaaa")
+	coinbase1 := svmtest.GenerateAddress(util.FromHex("aaaa"))
 	epoch1 := types.EpochID(2)
 	atx1 := types.NewActivationTx(newChallenge(id1, 0, *types.EmptyATXID, goldenATXID, epoch1.FirstLayer()), coinbase1, &types.NIPost{}, 0, nil)
 	r.NoError(atxdb.StoreAtx(context.TODO(), epoch1, atx1))
@@ -69,9 +70,9 @@ func Test_DBSanity(t *testing.T) {
 	id1 := types.NodeID{Key: uuid.New().String()}
 	id2 := types.NodeID{Key: uuid.New().String()}
 	id3 := types.NodeID{Key: uuid.New().String()}
-	coinbase1 := types.HexToAddress("aaaa")
-	coinbase2 := types.HexToAddress("bbbb")
-	coinbase3 := types.HexToAddress("cccc")
+	coinbase1 := svmtest.GenerateAddress(util.FromHex("aaaa"))
+	coinbase2 := svmtest.GenerateAddress(util.FromHex("bbbb"))
+	coinbase3 := svmtest.GenerateAddress(util.FromHex("cccc"))
 
 	atx1 := newActivationTx(id1, 0, *types.EmptyATXID, *types.EmptyATXID, types.NewLayerID(1), 0, 100, coinbase1, 100, &types.NIPost{})
 	atx2 := newActivationTx(id1, 0, *types.EmptyATXID, *types.EmptyATXID, types.NewLayerID(1001), 0, 100, coinbase2, 100, &types.NIPost{})
@@ -128,9 +129,9 @@ func TestMesh_processBlockATXs(t *testing.T) {
 	id1 := types.NodeID{Key: uuid.New().String(), VRFPublicKey: []byte("anton")}
 	id2 := types.NodeID{Key: uuid.New().String(), VRFPublicKey: []byte("anton")}
 	id3 := types.NodeID{Key: uuid.New().String(), VRFPublicKey: []byte("anton")}
-	coinbase1 := types.HexToAddress("aaaa")
-	coinbase2 := types.HexToAddress("bbbb")
-	coinbase3 := types.HexToAddress("cccc")
+	coinbase1 := svmtest.GenerateAddress(util.FromHex("aaaa"))
+	coinbase2 := svmtest.GenerateAddress(util.FromHex("bbbb"))
+	coinbase3 := svmtest.GenerateAddress(util.FromHex("cccc"))
 	chlng := types.HexToHash32("0x3333")
 	poetRef := []byte{0x76, 0x45}
 	npst := NewNIPostWithChallenge(&chlng, poetRef)
@@ -185,9 +186,9 @@ func TestActivationDB_ValidateAtx(t *testing.T) {
 	id1 := types.NodeID{Key: uuid.New().String(), VRFPublicKey: []byte("anton")}
 	id2 := types.NodeID{Key: uuid.New().String(), VRFPublicKey: []byte("anton")}
 	id3 := types.NodeID{Key: uuid.New().String(), VRFPublicKey: []byte("anton")}
-	coinbase1 := types.HexToAddress("aaaa")
-	coinbase2 := types.HexToAddress("bbbb")
-	coinbase3 := types.HexToAddress("cccc")
+	coinbase1 := svmtest.GenerateAddress(util.FromHex("aaaa"))
+	coinbase2 := svmtest.GenerateAddress(util.FromHex("bbbb"))
+	coinbase3 := svmtest.GenerateAddress(util.FromHex("cccc"))
 	atxs := []*types.ActivationTx{
 		newActivationTx(id1, 0, *types.EmptyATXID, *types.EmptyATXID, types.NewLayerID(1), 0, 100, coinbase1, 100, &types.NIPost{}),
 		newActivationTx(id2, 0, *types.EmptyATXID, *types.EmptyATXID, types.NewLayerID(1), 0, 100, coinbase2, 100, &types.NIPost{}),
@@ -230,7 +231,7 @@ func TestActivationDB_ValidateAtxErrors(t *testing.T) {
 	signer := signing.NewEdSigner()
 	idx1 := types.NodeID{Key: signer.PublicKey().String()}
 	idx2 := types.NodeID{Key: uuid.New().String()}
-	coinbase := types.HexToAddress("aaaa")
+	coinbase := svmtest.GenerateAddress(util.FromHex("aaaa"))
 
 	id1 := types.NodeID{Key: uuid.New().String()}
 	id2 := types.NodeID{Key: uuid.New().String()}
@@ -404,7 +405,7 @@ func TestActivationDB_ValidateAndInsertSorted(t *testing.T) {
 	atxdb := getAtxDb(t, "t8")
 	signer := signing.NewEdSigner()
 	idx1 := types.NodeID{Key: signer.PublicKey().String(), VRFPublicKey: []byte("12345")}
-	coinbase := types.HexToAddress("aaaa")
+	coinbase := svmtest.GenerateAddress(util.FromHex("aaaa"))
 
 	chlng := types.HexToHash32("0x3333")
 	poetRef := []byte{0x56, 0xbe}
@@ -486,7 +487,7 @@ func TestActivationDb_ProcessAtx(t *testing.T) {
 
 	atxdb := getAtxDb(t, "t8")
 	idx1 := types.NodeID{Key: uuid.New().String(), VRFPublicKey: []byte("anton")}
-	coinbase := types.HexToAddress("aaaa")
+	coinbase := svmtest.GenerateAddress(util.FromHex("aaaa"))
 	atx := newActivationTx(idx1, 0, *types.EmptyATXID, *types.EmptyATXID, types.NewLayerID(100), 0, 100, coinbase, 100, &types.NIPost{})
 
 	err := atxdb.ProcessAtx(context.TODO(), atx)
@@ -507,7 +508,7 @@ func BenchmarkActivationDb_SyntacticallyValidateAtx(b *testing.B) {
 		numberOfLayers uint32 = 100
 	)
 
-	coinbase := types.HexToAddress("c012ba5e")
+	coinbase := svmtest.GenerateAddress(util.FromHex("c012ba5e"))
 	var atxs []*types.ActivationTx
 	for i := 0; i < activesetSize; i++ {
 		id := types.NodeID{Key: uuid.New().String(), VRFPublicKey: []byte("vrf")}
@@ -739,12 +740,12 @@ func TestActivationDb_ContextuallyValidateAtx(t *testing.T) {
 	idStore := NewIdentityStore(database.NewMemDatabase())
 	atxdb := NewDB(database.NewMemDatabase(), nil, idStore, layersPerEpochBig, goldenATXID, &ValidatorMock{}, lg.WithName("atxDB"))
 
-	validAtx := types.NewActivationTx(newChallenge(nodeID, 0, *types.EmptyATXID, goldenATXID, types.LayerID{}), [20]byte{}, nil, 0, nil)
+	validAtx := types.NewActivationTx(newChallenge(nodeID, 0, *types.EmptyATXID, goldenATXID, types.LayerID{}), [types.AddressLength]byte{}, nil, 0, nil)
 	err := atxdb.ContextuallyValidateAtx(validAtx.ActivationTxHeader)
 	r.NoError(err)
 
 	arbitraryAtxID := types.ATXID(types.HexToHash32("11111"))
-	malformedAtx := types.NewActivationTx(newChallenge(nodeID, 0, arbitraryAtxID, goldenATXID, types.LayerID{}), [20]byte{}, nil, 0, nil)
+	malformedAtx := types.NewActivationTx(newChallenge(nodeID, 0, arbitraryAtxID, goldenATXID, types.LayerID{}), [types.AddressLength]byte{}, nil, 0, nil)
 	err = atxdb.ContextuallyValidateAtx(malformedAtx.ActivationTxHeader)
 	r.EqualError(err,
 		fmt.Sprintf("could not fetch node last atx: find ATX in DB: atx for node %v does not exist", nodeID.ShortString()))
@@ -780,7 +781,7 @@ func BenchmarkGetAtxHeaderWithConcurrentStoreAtx(b *testing.B) {
 			pub, _, _ := ed25519.GenerateKey(nil)
 			id := types.NodeID{Key: util.Bytes2Hex(pub), VRFPublicKey: []byte("22222")}
 			for i := 0; ; i++ {
-				atx := types.NewActivationTx(newChallenge(id, uint64(i), *types.EmptyATXID, goldenATXID, types.NewLayerID(0)), [20]byte{}, nil, 0, nil)
+				atx := types.NewActivationTx(newChallenge(id, uint64(i), *types.EmptyATXID, goldenATXID, types.NewLayerID(0)), [types.AddressLength]byte{}, nil, 0, nil)
 				if !assert.NoError(b, atxdb.StoreAtx(context.TODO(), types.EpochID(1), atx)) {
 					return
 				}

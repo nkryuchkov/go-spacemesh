@@ -8,6 +8,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/spacemeshos/ed25519"
+	"github.com/spacemeshos/go-spacemesh/svm/svmtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -35,7 +36,7 @@ var (
 	pub, _, _   = ed25519.GenerateKey(nil)
 	nodeID      = types.NodeID{Key: util.Bytes2Hex(pub), VRFPublicKey: []byte("22222")}
 	otherNodeID = types.NodeID{Key: "00000", VRFPublicKey: []byte("00000")}
-	coinbase    = types.HexToAddress("33333")
+	coinbase    = svmtest.GenerateAddress(util.FromHex("33333"))
 	goldenATXID = types.ATXID(types.HexToHash32("77777"))
 	prevAtxID   = types.ATXID(types.HexToHash32("44444"))
 	chlng       = types.HexToHash32("55555")
@@ -645,7 +646,7 @@ func TestBuilder_SignAtx(t *testing.T) {
 
 func TestBuilder_NIPostPublishRecovery(t *testing.T) {
 	id := types.NodeID{Key: "aaaaaa", VRFPublicKey: []byte("bbbbb")}
-	coinbase := types.HexToAddress("0xaaa")
+	coinbase := svmtest.GenerateAddress(util.FromHex("0xaaa"))
 	net := &NetMock{}
 	nipostBuilder := &NIPostBuilderMock{}
 	layersPerEpoch := uint32(10)

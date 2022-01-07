@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/spacemeshos/ed25519"
+	"github.com/spacemeshos/go-spacemesh/svm/svmtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -271,21 +272,21 @@ const (
 )
 
 func address() types.Address {
-	var addr [20]byte
+	var addr [types.AddressLength]byte
 	copy(addr[:], "12345678901234567890")
 	return addr
 }
 
 func newTx(r *require.Assertions, signer *signing.EdSigner, nonce, totalAmount uint64) *types.Transaction {
 	feeAmount := uint64(1)
-	tx, err := types.NewSignedTx(nonce, types.Address{}, totalAmount-feeAmount, 3, feeAmount, signer)
+	tx, err := svmtest.GenerateCallTransaction(signer, types.Address{}, nonce, totalAmount-feeAmount, 3, feeAmount)
 	r.NoError(err)
 	return tx
 }
 
 func newTxWithDest(r *require.Assertions, signer *signing.EdSigner, dest types.Address, nonce, totalAmount uint64) *types.Transaction {
 	feeAmount := uint64(1)
-	tx, err := types.NewSignedTx(nonce, dest, totalAmount-feeAmount, 3, feeAmount, signer)
+	tx, err := svmtest.GenerateCallTransaction(signer, dest, nonce, totalAmount-feeAmount, 3, feeAmount)
 	r.NoError(err)
 	return tx
 }
@@ -297,9 +298,7 @@ func newSignerAndAddress(r *require.Assertions, seedStr string) (*signing.EdSign
 	r.NoError(err)
 	signer, err := signing.NewEdSignerFromBuffer(privKey)
 	r.NoError(err)
-	var addr types.Address
-	addr.SetBytes(signer.PublicKey().Bytes())
-	return signer, addr
+	return signer, svmtest.GenerateAddress(signer.PublicKey().Bytes())
 }
 
 func TestMeshDB_GetStateProjection(t *testing.T) {

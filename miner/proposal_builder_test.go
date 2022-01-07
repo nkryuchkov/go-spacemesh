@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/spacemeshos/go-spacemesh/svm/svmtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -74,7 +75,7 @@ func createBuilder(tb testing.TB) *testBuilder {
 
 func genTX(tb testing.TB, nonce uint64, recipient types.Address, signer *signing.EdSigner) *types.Transaction {
 	tb.Helper()
-	tx, err := types.NewSignedTx(nonce, recipient, 1, defaultGasLimit, defaultFee, signer)
+	tx, err := svmtest.GenerateCallTransaction(signer, recipient, nonce, 1, defaultGasLimit, defaultFee)
 	require.NoError(tb, err)
 	return tx
 }

@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/spacemeshos/go-spacemesh/svm/svmtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -37,7 +38,7 @@ func (appliedTxsMock) NewBatch() database.Batch           { panic("implement me"
 func (appliedTxsMock) Find(key []byte) database.Iterator  { panic("implement me") }
 
 func createTransaction(t *testing.T, nonce uint64, destination types.Address, amount, fee uint64, signer *signing.EdSigner) *types.Transaction {
-	tx, err := types.NewSignedTx(nonce, destination, amount, 100, fee, signer)
+	tx, err := svmtest.GenerateCallTransaction(signer, destination, nonce, amount, 100, fee)
 	assert.NoError(t, err)
 	return tx
 }

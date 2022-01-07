@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/spacemeshos/ed25519"
+	"github.com/spacemeshos/go-spacemesh/svm/svmtest"
 
 	"github.com/spacemeshos/go-spacemesh/common/types"
 	"github.com/spacemeshos/go-spacemesh/database"
@@ -71,9 +72,7 @@ func NewTransactionProcessor(allStates, processorDb database.Database, projector
 
 // PublicKeyToAccountAddress converts ed25519 public key to account address.
 func PublicKeyToAccountAddress(pub ed25519.PublicKey) types.Address {
-	var addr types.Address
-	addr.SetBytes(pub)
-	return addr
+	return svmtest.GenerateAddress(pub)
 }
 
 // AddressExists checks if an account address exists in this node's global state.

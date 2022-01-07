@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spacemeshos/go-spacemesh/common/util"
+	"github.com/spacemeshos/go-spacemesh/svm/svmtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -60,12 +62,12 @@ const (
 )
 
 var (
-	addr1    = types.HexToAddress("33333")
+	addr1    = svmtest.GenerateAddress(util.FromHex("33333"))
 	globalTx = MakeTx(1, addr1, signing.NewEdSigner())
 )
 
 func MakeTx(nonce uint64, recipient types.Address, signer *signing.EdSigner) *types.Transaction {
-	tx, err := types.NewSignedTx(nonce, recipient, 1, defaultGasLimit, defaultFee, signer)
+	tx, err := svmtest.GenerateCallTransaction(signer, recipient, nonce, 1, defaultGasLimit, defaultFee)
 	if err != nil {
 		return nil
 	}
